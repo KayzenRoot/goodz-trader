@@ -49,3 +49,9 @@ Thumbs.db
 # misc
 .turbo/
 .vercel/
+
+# security scan outputs
+semgrep-local*.json
+semgrep.sarif
+gitleaks.sarif
+results.json
