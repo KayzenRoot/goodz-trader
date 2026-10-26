@@ -1,7 +1,7 @@
 # Foundation evidence (M0/M1)
 
 Date: 2026-10-26
-Main commit: `95fd598` (security dependency upgrade)
+Main commit: `025a8aa` (foundation evidence + issue map merged via PR #33)
 Repository: <https://github.com/KayzenRoot/goodz-trader>
 
 This is the evidence packet for the foundation/MVP issue set. Demo PnL is synthetic and is
@@ -35,16 +35,16 @@ Commands executed locally and in CI: `pnpm format:check`, `lint`, `typecheck`,
 
 ## Repository governance
 
-| Setting                   | Value                                                                                                                                       |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ruleset `main-protection` | id `25916370`: PR required, linear history, conversation resolution, **Quality Gate** + **CodeQL**, no force/delete, no bypass, squash-only |
-| Ruleset `release-tags`    | id `25916371`: `v*` tags cannot be moved/deleted                                                                                            |
-| Merge policy              | squash only, auto-delete head branch, auto-merge enabled                                                                                    |
-| Secret protection         | secret scanning + push protection enabled                                                                                                   |
-| Dependency security       | Dependabot alerts + security updates, dependency review on PRs                                                                              |
-| Disclosure                | private vulnerability reporting enabled                                                                                                     |
-| Actions token             | read-only; Actions cannot approve PRs                                                                                                       |
-| Dependabot config         | weekly, grouped, 7-day cooldown, major versions ignored (known exceptions closed)                                                           |
+| Setting                   | Value                                                                                                                                                               |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ruleset `main-protection` | id `25916370`: PR required, linear history, conversation resolution, **Quality Gate** + **CodeQL (javascript-typescript)**, no force/delete, no bypass, squash-only |
+| Ruleset `release-tags`    | id `25916371`: `v*` tags cannot be moved/deleted                                                                                                                    |
+| Merge policy              | squash only, auto-delete head branch, auto-merge enabled                                                                                                            |
+| Secret protection         | secret scanning + push protection enabled                                                                                                                           |
+| Dependency security       | Dependabot alerts + security updates, dependency review on PRs                                                                                                      |
+| Disclosure                | private vulnerability reporting enabled                                                                                                                             |
+| Actions token             | read-only; Actions cannot approve PRs                                                                                                                               |
+| Dependabot config         | weekly, grouped, 7-day cooldown, major versions ignored (known exceptions closed)                                                                                   |
 
 ## GitHub Apps
 
@@ -80,5 +80,6 @@ Details: [GITHUB_APPS.md](GITHUB_APPS.md).
   provided and the Docker path is an open issue (#21).
 - SQLite REAL money is not exact fixed-point (issue #24).
 - Demo PnL is synthetic; no profitability claim.
+- The first protected PR (#33) merged successfully; future changes must follow the same path.
 - Scorecard score is low primarily because the ruleset/PR history is new; it will improve as
   PRs are merged with review.
