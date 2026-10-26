@@ -1,0 +1,9 @@
+# Default owner for every path.
+* @KayzenRoot
+
+# Trading safety and secrets require the maintainer.
+/packages/core/src/risk.ts @KayzenRoot
+/apps/api/src/bot/ @KayzenRoot
+/apps/api/src/brokers/ @KayzenRoot
+/apps/api/src/services/settings.ts @KayzenRoot
+/.github/ @KayzenRoot

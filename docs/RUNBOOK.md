@@ -1,0 +1,138 @@
+# Runbook
+
+## Local development
+
+```powershell
+pnpm install
+pnpm dev
+# dashboard http://localhost:5173
+# API      http://localhost:3001/api/health
+```
+
+- `.data/goodz.db` is the ledger. Delete it with `pnpm db:reset` (destructive).
+- `.data/dev-secret` is generated in development. Production requires `APP_SECRET`.
+- `SEED_DEMO=true` only populates an empty trades table. Set false for production.
+
+## Production (Docker)
+
+1. Create `.env` from `.env.example` and set:
+   - `APP_SECRET` (32+ random chars, never reuse dev)
+   - `AUTH_PASSWORD` (strong)
+   - `HOST=0.0.0.0`, `PORT=3001`
+   - `DATABASE_PATH=/data/goodz.db`
+   - `WEB_DIST_PATH=/app/apps/web/dist`
+   - `LIVE_TRADING_ENABLED=false` until validated
+   - `SEED_DEMO=false`
+   - `COOKIE_SECURE=true` behind HTTPS
+2. `docker compose up -d --build`
+3. Check `docker compose ps` and `curl http://127.0.0.1:3001/api/health`.
+4. Put it behind a reverse proxy with TLS, auth (if desired) and firewall allowlist.
+5. Back up the volume before enabling live.
+
+## Startup checklist
+
+- [ ] `/api/health` returns ok.
+- [ ] Dashboard loads and shows **Parado**.
+- [ ] Settings show the expected symbol, leverage, daily target/stop.
+- [ ] API connection test shows the expected equity and one-way mode.
+- [ ] Feed is connected and fresh.
+- [ ] Kill switch is off.
+- [ ] For live: account is flat, one-way, key is read+trade only, IP whitelisted.
+- [ ] Paper validation complete; size starts at minimum.
+- [ ] Type the confirmation phrase and start.
+- [ ] Watch the first fill/exit and compare with MEXC.
+
+## Normal stop
+
+Use **Parar** (topbar), keep "Fechar posição aberta" enabled. The API cancels pending orders,
+closes the position, disconnects and persists `stopped`.
+
+## Emergency stop
+
+Use the red **kill switch**. It halts, cancels, attempts a market close and blocks restart.
+If the close fails, close manually on MEXC. Do not restart until flat/reconciled.
+
+## Daily reset
+
+- Boundary: `resetHourUtc` (default 00:00 UTC).
+- The engine rolls counters on the next tick and writes `daily_stats`.
+- A halt does not auto-clear at reset; restart manually after the guard passes.
+
+## Logs
+
+- Dashboard: **Logs & auditoria** (stream + DB).
+- Docker: `docker compose logs -f goodz`.
+- DB: `logs` table, `audit_log` table.
+- Logs redact auth headers, API keys, secrets and tokens. If you see a secret, treat it as an
+  incident and rotate immediately.
+
+## Backup
+
+SQLite WAL means copy the database safely:
+
+```bash
+# preferred: stop the container, copy the volume, start
+docker compose stop goodz
+docker run --rm -v goodz-data:/data -v "$PWD/backups:/backup" alpine \
+  sh -c 'cp /data/goodz.db /backup/goodz-$(date +%Y%m%d-%H%M%S).db'
+docker compose start goodz
+```
+
+For a hot copy, use `sqlite3 .backup` or `VACUUM INTO`; do not copy only the `.db` while WAL
+has uncheckpointed pages. Test restores quarterly.
+
+## Restore
+
+1. Stop the app.
+2. Replace `/data/goodz.db` with the backup (remove `-wal`/`-shm`).
+3. Start the app; verify `/api/health`, `/api/trades` and the ledger count against the backup.
+4. Start in paper/stopped state first.
+
+## Upgrade
+
+1. Read the PR/changelog and migration notes.
+2. Back up the DB.
+3. `git pull` / build image.
+4. `docker compose up -d --build`.
+5. Verify migrations, health, settings and a paper start.
+6. Resume live only after the preflight checklist.
+
+## Rollback
+
+- Keep the previous image tag and DB backup.
+- Stop app, restore DB, run previous image.
+- If a migration is not backward compatible, do not downgrade without the matching backup.
+
+## Rotate MEXC keys
+
+1. Stop the bot and flatten.
+2. Create a new key (read+trade, IP whitelist), delete the old one after validation.
+3. Update Settings or env, test connection, audit the change.
+4. If a leak is suspected, rotate before any other investigation.
+
+## Incident response
+
+1. Kill switch.
+2. Check MEXC manually for positions/orders.
+3. Preserve evidence: logs, trades CSV, timestamps, request IDs.
+4. Determine blast radius: paper only, live position, credentials, host.
+5. Fix, test, document, then restart small.
+6. Open an incident issue with timeline and follow-ups.
+
+## Health indicators
+
+| Indicator      | Healthy  | Action                                   |
+| -------------- | -------- | ---------------------------------------- |
+| `/api/health`  | 200 `ok` | check container/logs                     |
+| Feed last tick | < 2s     | check network/MEXC; entries block at 5s  |
+| WS dashboard   | online   | polling fallback still works             |
+| API latency    | < 500ms  | inspect rate limits/logs                 |
+| Halt reason    | none     | read reason, fix guard, restart manually |
+| DB size        | stable   | prune equity/logs per retention policy   |
+
+## Known operational gaps
+
+- No automated off-host backups.
+- No Prometheus endpoint yet (tracked issue).
+- No automatic live-position reconciliation after a crash.
+- No alert when the process dies (use Docker restart + external monitoring).

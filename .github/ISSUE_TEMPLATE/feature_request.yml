@@ -1,0 +1,71 @@
+name: Feature / task
+description: A scoped production task with acceptance criteria.
+title: '[Feature] '
+labels: ['type/feature', 'status/ready']
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why now? Link the milestone, ADR or prior issue.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What is in scope and explicitly out of scope.
+      placeholder: |
+        In:
+        - ...
+        Out:
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Testable statements. Include blocked paths and fee/PnL behavior.
+      placeholder: |
+        - [ ] ...
+        - [ ] Test: ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - engine
+        - risk
+        - mexc
+        - api
+        - web
+        - db
+        - infra
+        - docs
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks / safety
+      description: Live trading, secrets, funds, data loss, MEXC semantics.
+  - type: textarea
+    id: tests
+    attributes:
+      label: Test plan
+      description: Unit/integration/E2E/paper/manual live validation.
+  - type: checkboxes
+    id: gates
+    attributes:
+      label: Quality gates
+      options:
+        - label: This change can affect order placement, sizing, fees or halts.
+          required: false
+        - label: This change requires an ADR or TRADING_SAFETY update.
+          required: false
+        - label: This change requires live validation with tiny notional.
+          required: false

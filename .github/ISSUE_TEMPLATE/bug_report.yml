@@ -1,0 +1,66 @@
+name: Bug report
+description: Something is broken, inconsistent or unsafe.
+title: '[Bug] '
+labels: ['type/bug', 'status/ready']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include API keys, secrets, cookies or real account identifiers.
+        Security vulnerabilities must use private reporting (SECURITY.md), not this form.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and why is it a problem?
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options: [Paper, Live (no real order), Live (real order), Not trading related]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction
+      description: Exact steps, timestamps, symbol, config values (redact secrets).
+      placeholder: |
+        1. Start paper bot with ...
+        2. Wait for ...
+        3. Observed ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Logs, trade ID, request ID, screenshot. Redact secrets.
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - 'P0 — funds/secret at risk'
+        - 'P1 — bot unusable or wrong PnL'
+        - 'P2 — degraded'
+        - 'P3 — cosmetic'
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety
+      options:
+        - label: I did not include secrets or real account identifiers.
+          required: true
+        - label: If funds are at risk, I stopped the bot / used the kill switch.
+          required: false
