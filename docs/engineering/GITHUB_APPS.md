@@ -43,7 +43,7 @@ Supabase, Vercel, etc.) are unrelated to this repo's quality gates and are not c
 
 - [x] Installed (all repositories).
 - [x] Free for public repos.
-- [ ] Comment `/ecc-tools audit` on the foundation issue and review the result.
+- [x] Commented `/ecc-tools audit` on issue #1: **100/100 (Grade A)**, 0 findings.
 - [ ] Comment `/ecc-tools analyze` only if you want a hosted PR of suggestions; compare with
       `.opencode/` before merging.
 

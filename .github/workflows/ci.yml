@@ -108,8 +108,14 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Install Playwright browser
-        run: pnpm --filter @goodz/web exec playwright install --with-deps chromium
+        run: pnpm --filter @goodz/web exec playwright install --with-deps --only-shell chromium
 
       - name: Playwright
         run: pnpm --filter @goodz/web e2e

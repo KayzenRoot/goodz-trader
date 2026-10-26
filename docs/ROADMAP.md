@@ -1,7 +1,7 @@
 # Roadmap
 
 The **GitHub issue tracker is the source of truth**. This document is a map of the
-milestones and the intended production sequence. Issue numbers are added when created.
+milestones and the intended production sequence. Issue numbers are live links.
 
 ## Milestones
 
@@ -14,65 +14,53 @@ milestones and the intended production sequence. Issue numbers are added when cr
 | **M4 — Deploy & ops**            | Reproducible self-host            | Docker, backups, observability, runbook drills                |
 | **M5 — Research**                | Backtest & optimization           | replay harness, fee/slippage/funding model, parameter reports |
 
-## Issue map (titles)
+## M0 — Foundation & governance
 
-### Foundation / governance (M0)
+- [#1](https://github.com/KayzenRoot/goodz-trader/issues/1) Epic: foundation, governance and quality pipeline
+- [#2](https://github.com/KayzenRoot/goodz-trader/issues/2) Rulesets, branch protection and repository security
+- [#3](https://github.com/KayzenRoot/goodz-trader/issues/3) CI + Playwright E2E as Quality Gate
+- [#4](https://github.com/KayzenRoot/goodz-trader/issues/4) ECC integration for OpenCode
+- [#5](https://github.com/KayzenRoot/goodz-trader/issues/5) ADRs, architecture, safety, MEXC and runbook
 
-- [Epic] M0 — Foundation, governance and quality pipeline
-- Configure rulesets, branch protection and repository security
-- ADR 0001 — engine architecture and risk boundaries
-- CI quality gate + Playwright E2E
-- ECC agent workflow integration for OpenCode
+## M1 — Paper MVP
 
-### Paper MVP (M1)
+- [#6](https://github.com/KayzenRoot/goodz-trader/issues/6) MEXC client: signed REST, public WS, contracts
+- [#7](https://github.com/KayzenRoot/goodz-trader/issues/7) Paper broker + synthetic/MEXC feeds + deterministic demo
+- [#8](https://github.com/KayzenRoot/goodz-trader/issues/8) Momentum + order-flow strategy with maker-first/fallback
+- [#9](https://github.com/KayzenRoot/goodz-trader/issues/9) Server-side risk guard: sizing, daily stop/target, kill switch
+- [#10](https://github.com/KayzenRoot/goodz-trader/issues/10) SQLite ledger and fee/PnL analytics
+- [#11](https://github.com/KayzenRoot/goodz-trader/issues/11) Fastify API, WebSocket, auth and encrypted settings
+- [#12](https://github.com/KayzenRoot/goodz-trader/issues/12) Settings page with full bot control
+- [#13](https://github.com/KayzenRoot/goodz-trader/issues/13) Overview + visual risk guard + system health
+- [#14](https://github.com/KayzenRoot/goodz-trader/issues/14) Terminal: candles, order book, tape and position
+- [#15](https://github.com/KayzenRoot/goodz-trader/issues/15) Trades & Analytics with CSV export
 
-- MEXC Futures client: signed REST + public WS + contract metadata
-- Deterministic paper broker and synthetic/live market feeds
-- Momentum + order-flow scalper with maker timeout/fallback
-- Risk guard: daily stop, target, sizing, cooldown, kill switch
-- Trade ledger, fees, equity snapshots and analytics
-- Fastify API, WebSocket stream, auth and rate limiting
-- Settings page with full bot/API/risk control
-- Overview dashboard and visual risk guard
-- Trades & Analytics pages with CSV export
-- E2E tests for paper start/stop and settings persistence
+## M2 — Live hardening
 
-### Live hardening (M2)
+- [#16](https://github.com/KayzenRoot/goodz-trader/issues/16) Private WS, reconciliation and idempotency
+- [#17](https://github.com/KayzenRoot/goodz-trader/issues/17) Live validation with minimum notional and ledger reconciliation (**blocked**)
+- [#18](https://github.com/KayzenRoot/goodz-trader/issues/18) Maker-first live: post-only, requote, partial fills
+- [#19](https://github.com/KayzenRoot/goodz-trader/issues/19) Reliable notifications (Telegram/webhook) with retry
 
-- Live preflight, one-way mode, flat-account checks and API validation
-- Private MEXC WS for order/position updates and reconciliation after crash
-- Maker-first real execution: post-only, requote, cancel/replace
-- Idempotency and duplicate-order protection at the broker boundary
-- Live validation with minimum notional and ledger reconciliation
-- Notification delivery retries and halt alerts
-- Security review of live trading and secret rotation drill
+## M3 — Dashboard Pro
 
-### Dashboard Pro (M3)
+- [#20](https://github.com/KayzenRoot/goodz-trader/issues/20) Mobile, accessibility, trade replay and alert center
 
-- Mobile/responsive polish and keyboard accessibility audit
-- Trade replay and per-trade chart markers
-- Alert center and daily report
-- Symbol/strategy comparison and multi-symbol read-only view
+## M4 — Deploy & observability
 
-### Deploy & ops (M4)
+- [#21](https://github.com/KayzenRoot/goodz-trader/issues/21) Docker, backup/restore, retention and runbook drill
+- [#22](https://github.com/KayzenRoot/goodz-trader/issues/22) Prometheus metrics, health and external alerting
 
-- Reproducible Docker image and Compose deployment
-- Backup/restore drill and retention policy
-- Prometheus metrics, healthchecks and external alerting
-- Multi-environment configuration (dev/staging/prod)
+## M5 — Research
 
-### Research (M5)
-
-- Historical candle/order-book replay harness
-- Fee, spread, slippage and funding model
-- Parameter sweep with out-of-sample/walk-forward reports
-- Strategy comparison and risk-of-ruin report
+- [#23](https://github.com/KayzenRoot/goodz-trader/issues/23) Backtest/replay with fees, slippage, funding and walk-forward
+- [#24](https://github.com/KayzenRoot/goodz-trader/issues/24) Fixed-point ledger and exact reconciliation
 
 ## Sequencing rule
 
-Do not start M2 live work until M1 paper E2E is green and the live preflight issue has a
-manual validation record. Do not increase notional until a full live session reconciles with
-the MEXC ledger (fees and average prices).
+Do not start M2 live work until M1 paper E2E is green and the live preflight has a manual
+validation record. Do not increase notional until a full live session reconciles with the
+MEXC ledger (fees and average prices).
 
 ## Definition of done (per issue)
 
