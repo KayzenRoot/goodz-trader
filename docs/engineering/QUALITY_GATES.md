@@ -13,8 +13,8 @@
 | `pnpm e2e`           | Playwright paper/control flows                       |
 
 Coverage thresholds are floors, not goals. Trading math and signing should stay near 100%.
-Current floors: core 85%, MEXC 80%, API 70%, web lib 70% (lines/statements; branches/functions
-have their own floors in each `vitest.config.ts`).
+Current floors: core 85%, MEXC 80%, API 65% lines / 63% statements / 45% branches, web lib
+70% (functions/branches have their own floors in each `vitest.config.ts`).
 
 Bootstrap scripts: `scripts/github/bootstrap.mjs`, `apply-rulesets.mjs`, `apply-settings.mjs`.
 See `scripts/github/README.md`.

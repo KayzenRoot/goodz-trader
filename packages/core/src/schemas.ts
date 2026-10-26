@@ -14,7 +14,7 @@ const booleanFromEnv = z
 export const envBooleanSchema = booleanFromEnv;
 
 const nested = <T extends z.ZodTypeAny>(schema: T): z.ZodDefault<T> =>
-  schema.default(schema.parse({}));
+  schema.default(schema.parse({}) as never);
 
 export const paperSchema = nested(
   z.object({
