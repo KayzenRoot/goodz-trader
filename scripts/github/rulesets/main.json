@@ -39,7 +39,7 @@
             "context": "Quality Gate"
           },
           {
-            "context": "CodeQL"
+            "context": "CodeQL (javascript-typescript)"
           }
         ]
       }
