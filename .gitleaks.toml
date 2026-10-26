@@ -1,0 +1,25 @@
+# Gitleaks configuration.
+#
+# The only synthetic credentials in this repository live in tests, the E2E
+# Playwright config and documentation examples. They are not usable against
+# MEXC, but they look like API keys to entropy scanners. Real secrets must never
+# be committed; this allowlist is intentionally scoped to test/e2e paths and
+# known fake prefixes, not to application code.
+
+[allowlist]
+description = "Synthetic test fixtures and documentation examples"
+paths = [
+  '''apps/api/test/.*''',
+  '''apps/web/e2e/.*''',
+  '''apps/web/playwright\.config\.ts''',
+  '''docs/.*''',
+  '''\.env\.example''',
+]
+regexes = [
+  '''test-secret-[A-Za-z0-9-]+''',
+  '''debug-secret-[A-Za-z0-9-]+''',
+  '''e2e-secret-[A-Za-z0-9-]+''',
+  '''mx-(key|secret)-[A-Za-z0-9-]+''',
+  '''fake-[A-Za-z0-9-]+''',
+  '''sk-test-[A-Za-z0-9-]+''',
+]

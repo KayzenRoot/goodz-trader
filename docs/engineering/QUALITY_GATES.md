@@ -44,8 +44,9 @@ npm and GitHub Actions, plus Docker base updates.
 
 ## OpenSSF Scorecard (`scorecard.yml`)
 
-Weekly + main push; publishes results and SARIF. Tracks branch protection, token
-permissions, pinned actions, dangerous workflow patterns.
+Weekly + main push; CLI JSON artifact + job summary. Tracks branch protection, token
+permissions, pinned actions and dangerous workflow patterns. The marketplace action is not
+used because it pulls a GCR image; the CLI keeps the audit independent of that registry.
 
 ## Rulesets (GitHub)
 

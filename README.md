@@ -6,7 +6,7 @@ single-user, self-hosted.
 [![CI](https://github.com/KayzenRoot/goodz-trader/actions/workflows/ci.yml/badge.svg)](https://github.com/KayzenRoot/goodz-trader/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/KayzenRoot/goodz-trader/actions/workflows/codeql.yml/badge.svg)](https://github.com/KayzenRoot/goodz-trader/actions/workflows/codeql.yml)
 [![codecov](https://codecov.io/gh/KayzenRoot/goodz-trader/branch/main/graph/badge.svg)](https://codecov.io/gh/KayzenRoot/goodz-trader)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/KayzenRoot/goodz-trader/badge)](https://securityscorecards.dev/viewer/?uri=github.com/KayzenRoot/goodz-trader)
+[![OpenSSF Scorecard](https://github.com/KayzenRoot/goodz-trader/actions/workflows/scorecard.yml/badge.svg)](https://github.com/KayzenRoot/goodz-trader/actions/workflows/scorecard.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 > **Risk warning.** Leveraged futures can lose more than your initial margin. This is

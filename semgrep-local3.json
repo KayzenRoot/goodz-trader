@@ -1,0 +1,521 @@
+{
+  "version": "1.182.1",
+  "results": [
+    {
+      "check_id": "javascript.node-crypto.security.gcm-no-tag-length.gcm-no-tag-length",
+      "path": "apps\\api\\src\\lib\\crypto.ts",
+      "start": { "line": 33, "col": 22, "offset": 997 },
+      "end": { "line": 37, "col": 6, "offset": 1106 },
+      "extra": {
+        "message": "The call to 'createDecipheriv' with the Galois Counter Mode (GCM) mode of operation is missing an expected authentication tag length. If the expected authentication tag length is not specified or otherwise checked, the application might be tricked into verifying a shorter-than-expected authentication tag. This can be abused by an attacker to spoof ciphertexts or recover the implicit authentication key of GCM, allowing arbitrary forgeries.",
+        "metadata": {
+          "cwe": ["CWE-310: CWE CATEGORY: Cryptographic Issues"],
+          "owasp": ["A02:2021 - Cryptographic Failures", "A04:2025 - Cryptographic Failures"],
+          "category": "security",
+          "subcategory": ["vuln"],
+          "technology": ["node-crypto"],
+          "likelihood": "MEDIUM",
+          "impact": "MEDIUM",
+          "confidence": "MEDIUM",
+          "references": [
+            "https://www.securesystems.de/blog/forging_ciphertexts_under_Galois_Counter_Mode_for_the_Node_js_crypto_module/",
+            "https://nodejs.org/api/crypto.html#cryptocreatedecipherivalgorithm-key-iv-options",
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures/"
+          ],
+          "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+          "vulnerability_class": ["Cryptographic Issues"],
+          "source": "https://semgrep.dev/r/javascript.node-crypto.security.gcm-no-tag-length.gcm-no-tag-length",
+          "shortlink": "https://sg.run/NbGG1"
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 3,
+      "level": "warn",
+      "type": [
+        "PartialParsing",
+        [
+          {
+            "path": ".github\\workflows\\ci.yml",
+            "start": { "line": 137, "col": 32, "offset": 2969 },
+            "end": { "line": 137, "col": 54, "offset": 2991 }
+          },
+          {
+            "path": ".github\\workflows\\ci.yml",
+            "start": { "line": 138, "col": 18, "offset": 2969 },
+            "end": { "line": 138, "col": 36, "offset": 2987 }
+          },
+          {
+            "path": ".github\\workflows\\ci.yml",
+            "start": { "line": 139, "col": 9, "offset": 2969 },
+            "end": { "line": 139, "col": 31, "offset": 2991 }
+          },
+          {
+            "path": ".github\\workflows\\ci.yml",
+            "start": { "line": 139, "col": 59, "offset": 2969 },
+            "end": { "line": 139, "col": 77, "offset": 2987 }
+          }
+        ]
+      ],
+      "message": "Syntax error at line .github\\workflows\\ci.yml:137:\n When parsing a snippet as Bash for metavariable-pattern in rule 'yaml.github-actions.security.curl-eval.curl-eval', `{ needs.quality.result` was unexpected",
+      "path": ".github\\workflows\\ci.yml",
+      "spans": [
+        {
+          "file": ".github\\workflows\\ci.yml",
+          "start": { "line": 137, "col": 32, "offset": 2969 },
+          "end": { "line": 137, "col": 54, "offset": 2991 }
+        },
+        {
+          "file": ".github\\workflows\\ci.yml",
+          "start": { "line": 138, "col": 18, "offset": 2969 },
+          "end": { "line": 138, "col": 36, "offset": 2987 }
+        },
+        {
+          "file": ".github\\workflows\\ci.yml",
+          "start": { "line": 139, "col": 9, "offset": 2969 },
+          "end": { "line": 139, "col": 31, "offset": 2991 }
+        },
+        {
+          "file": ".github\\workflows\\ci.yml",
+          "start": { "line": 139, "col": 59, "offset": 2969 },
+          "end": { "line": 139, "col": 77, "offset": 2987 }
+        }
+      ]
+    },
+    {
+      "code": 3,
+      "level": "warn",
+      "type": [
+        "PartialParsing",
+        [
+          {
+            "path": ".github\\workflows\\ci.yml",
+            "start": { "line": 137, "col": 32, "offset": 2969 },
+            "end": { "line": 137, "col": 54, "offset": 2991 }
+          },
+          {
+            "path": ".github\\workflows\\ci.yml",
+            "start": { "line": 138, "col": 18, "offset": 2969 },
+            "end": { "line": 138, "col": 36, "offset": 2987 }
+          },
+          {
+            "path": ".github\\workflows\\ci.yml",
+            "start": { "line": 139, "col": 9, "offset": 2969 },
+            "end": { "line": 139, "col": 31, "offset": 2991 }
+          },
+          {
+            "path": ".github\\workflows\\ci.yml",
+            "start": { "line": 139, "col": 59, "offset": 2969 },
+            "end": { "line": 139, "col": 77, "offset": 2987 }
+          }
+        ]
+      ],
+      "message": "Syntax error at line .github\\workflows\\ci.yml:137:\n When parsing a snippet as Bash for metavariable-pattern in rule 'yaml.github-actions.security.gha-curl-pipe-shell.gha-curl-pipe-shell', `{ needs.quality.result` was unexpected",
+      "path": ".github\\workflows\\ci.yml",
+      "spans": [
+        {
+          "file": ".github\\workflows\\ci.yml",
+          "start": { "line": 137, "col": 32, "offset": 2969 },
+          "end": { "line": 137, "col": 54, "offset": 2991 }
+        },
+        {
+          "file": ".github\\workflows\\ci.yml",
+          "start": { "line": 138, "col": 18, "offset": 2969 },
+          "end": { "line": 138, "col": 36, "offset": 2987 }
+        },
+        {
+          "file": ".github\\workflows\\ci.yml",
+          "start": { "line": 139, "col": 9, "offset": 2969 },
+          "end": { "line": 139, "col": 31, "offset": 2991 }
+        },
+        {
+          "file": ".github\\workflows\\ci.yml",
+          "start": { "line": 139, "col": 59, "offset": 2969 },
+          "end": { "line": 139, "col": 77, "offset": 2987 }
+        }
+      ]
+    },
+    {
+      "code": 3,
+      "level": "warn",
+      "type": [
+        "PartialParsing",
+        [
+          {
+            "path": ".github\\workflows\\scorecard.yml",
+            "start": { "line": 37, "col": 46, "offset": 941 },
+            "end": { "line": 37, "col": 65, "offset": 960 }
+          }
+        ]
+      ],
+      "message": "Syntax error at line .github\\workflows\\scorecard.yml:37:\n When parsing a snippet as Bash for metavariable-pattern in rule 'yaml.github-actions.security.curl-eval.curl-eval', `{ github.repository` was unexpected",
+      "path": ".github\\workflows\\scorecard.yml",
+      "spans": [
+        {
+          "file": ".github\\workflows\\scorecard.yml",
+          "start": { "line": 37, "col": 46, "offset": 941 },
+          "end": { "line": 37, "col": 65, "offset": 960 }
+        }
+      ]
+    },
+    {
+      "code": 3,
+      "level": "warn",
+      "type": [
+        "PartialParsing",
+        [
+          {
+            "path": ".github\\workflows\\scorecard.yml",
+            "start": { "line": 37, "col": 46, "offset": 941 },
+            "end": { "line": 37, "col": 65, "offset": 960 }
+          }
+        ]
+      ],
+      "message": "Syntax error at line .github\\workflows\\scorecard.yml:37:\n When parsing a snippet as Bash for metavariable-pattern in rule 'yaml.github-actions.security.gha-curl-pipe-shell.gha-curl-pipe-shell', `{ github.repository` was unexpected",
+      "path": ".github\\workflows\\scorecard.yml",
+      "spans": [
+        {
+          "file": ".github\\workflows\\scorecard.yml",
+          "start": { "line": 37, "col": 46, "offset": 941 },
+          "end": { "line": 37, "col": 65, "offset": 960 }
+        }
+      ]
+    }
+  ],
+  "paths": {
+    "scanned": [
+      ".dockerignore",
+      ".editorconfig",
+      ".env.example",
+      ".gitattributes",
+      ".github\\CODEOWNERS",
+      ".github\\dependabot.yml",
+      ".github\\ISSUE_TEMPLATE\\bug_report.yml",
+      ".github\\ISSUE_TEMPLATE\\config.yml",
+      ".github\\ISSUE_TEMPLATE\\feature_request.yml",
+      ".github\\pull_request_template.md",
+      ".github\\workflows\\ci.yml",
+      ".github\\workflows\\codeql.yml",
+      ".github\\workflows\\dependency-review.yml",
+      ".github\\workflows\\scorecard.yml",
+      ".github\\workflows\\security.yml",
+      ".gitignore",
+      ".nvmrc",
+      ".opencode\\commands\\build-fix.md",
+      ".opencode\\commands\\checkpoint.md",
+      ".opencode\\commands\\code-review.md",
+      ".opencode\\commands\\e2e.md",
+      ".opencode\\commands\\eval.md",
+      ".opencode\\commands\\plan.md",
+      ".opencode\\commands\\refactor-clean.md",
+      ".opencode\\commands\\security.md",
+      ".opencode\\commands\\tdd.md",
+      ".opencode\\commands\\test-coverage.md",
+      ".opencode\\commands\\update-docs.md",
+      ".opencode\\commands\\verify.md",
+      ".opencode\\instructions\\ECC_OPENCODE_README.md",
+      ".opencode\\instructions\\INSTRUCTIONS.md",
+      ".opencode\\instructions\\PROJECT.md",
+      ".opencode\\prompts\\agents\\architect.txt",
+      ".opencode\\prompts\\agents\\build-error-resolver.txt",
+      ".opencode\\prompts\\agents\\code-reviewer.txt",
+      ".opencode\\prompts\\agents\\database-reviewer.txt",
+      ".opencode\\prompts\\agents\\doc-updater.txt",
+      ".opencode\\prompts\\agents\\e2e-runner.txt",
+      ".opencode\\prompts\\agents\\planner.txt",
+      ".opencode\\prompts\\agents\\refactor-cleaner.txt",
+      ".opencode\\prompts\\agents\\security-reviewer.txt",
+      ".opencode\\prompts\\agents\\tdd-guide.txt",
+      ".opencode\\README.md",
+      ".opencode\\rules\\common\\agents.md",
+      ".opencode\\rules\\common\\code-review.md",
+      ".opencode\\rules\\common\\coding-style.md",
+      ".opencode\\rules\\common\\development-workflow.md",
+      ".opencode\\rules\\common\\git-workflow.md",
+      ".opencode\\rules\\common\\hooks.md",
+      ".opencode\\rules\\common\\patterns.md",
+      ".opencode\\rules\\common\\performance.md",
+      ".opencode\\rules\\common\\security.md",
+      ".opencode\\rules\\common\\testing.md",
+      ".opencode\\rules\\typescript\\coding-style.md",
+      ".opencode\\rules\\typescript\\hooks.md",
+      ".opencode\\rules\\typescript\\patterns.md",
+      ".opencode\\rules\\typescript\\security.md",
+      ".opencode\\rules\\typescript\\testing.md",
+      ".prettierignore",
+      ".prettierrc.json",
+      "AGENTS.md",
+      "apps\\api\\package.json",
+      "apps\\api\\src\\app.ts",
+      "apps\\api\\src\\bot\\engine.ts",
+      "apps\\api\\src\\brokers\\factory.ts",
+      "apps\\api\\src\\brokers\\index.ts",
+      "apps\\api\\src\\brokers\\live.ts",
+      "apps\\api\\src\\brokers\\paper.ts",
+      "apps\\api\\src\\brokers\\types.ts",
+      "apps\\api\\src\\db\\database.ts",
+      "apps\\api\\src\\db\\repo.ts",
+      "apps\\api\\src\\db\\schema.ts",
+      "apps\\api\\src\\env.ts",
+      "apps\\api\\src\\index.ts",
+      "apps\\api\\src\\lib\\crypto.ts",
+      "apps\\api\\src\\lib\\http-error.ts",
+      "apps\\api\\src\\lib\\logger.ts",
+      "apps\\api\\src\\routes\\auth.ts",
+      "apps\\api\\src\\routes\\bot.ts",
+      "apps\\api\\src\\routes\\helpers.ts",
+      "apps\\api\\src\\routes\\logs.ts",
+      "apps\\api\\src\\routes\\settings.ts",
+      "apps\\api\\src\\routes\\status.ts",
+      "apps\\api\\src\\routes\\trades.ts",
+      "apps\\api\\src\\scripts\\reset-db.ts",
+      "apps\\api\\src\\services\\auth.ts",
+      "apps\\api\\src\\services\\candles.ts",
+      "apps\\api\\src\\services\\contracts.ts",
+      "apps\\api\\src\\services\\demo.ts",
+      "apps\\api\\src\\services\\events.ts",
+      "apps\\api\\src\\services\\market-data.ts",
+      "apps\\api\\src\\services\\notifier.ts",
+      "apps\\api\\src\\services\\settings.ts",
+      "apps\\api\\tsconfig.json",
+      "apps\\api\\tsup.config.ts",
+      "apps\\api\\vitest.config.ts",
+      "apps\\web\\e2e\\smoke.spec.ts",
+      "apps\\web\\index.html",
+      "apps\\web\\package.json",
+      "apps\\web\\playwright.config.ts",
+      "apps\\web\\src\\App.tsx",
+      "apps\\web\\src\\components\\charts\\EquityChart.tsx",
+      "apps\\web\\src\\components\\charts\\HourlyChart.tsx",
+      "apps\\web\\src\\components\\charts\\PnlBars.tsx",
+      "apps\\web\\src\\components\\charts\\PriceChart.tsx",
+      "apps\\web\\src\\components\\charts\\RDistributionChart.tsx",
+      "apps\\web\\src\\components\\layout\\AppShell.tsx",
+      "apps\\web\\src\\components\\layout\\ProtectedShell.tsx",
+      "apps\\web\\src\\components\\layout\\Sidebar.tsx",
+      "apps\\web\\src\\components\\layout\\Topbar.tsx",
+      "apps\\web\\src\\components\\trades\\badges.test.tsx",
+      "apps\\web\\src\\components\\trades\\badges.tsx",
+      "apps\\web\\src\\components\\ui\\badge.tsx",
+      "apps\\web\\src\\components\\ui\\button.tsx",
+      "apps\\web\\src\\components\\ui\\card.tsx",
+      "apps\\web\\src\\components\\ui\\dialog.tsx",
+      "apps\\web\\src\\components\\ui\\empty.tsx",
+      "apps\\web\\src\\components\\ui\\input.tsx",
+      "apps\\web\\src\\components\\ui\\progress.tsx",
+      "apps\\web\\src\\components\\ui\\segmented.test.tsx",
+      "apps\\web\\src\\components\\ui\\segmented.tsx",
+      "apps\\web\\src\\components\\ui\\skeleton.tsx",
+      "apps\\web\\src\\components\\ui\\stat.tsx",
+      "apps\\web\\src\\components\\ui\\status-dot.tsx",
+      "apps\\web\\src\\components\\ui\\switch.tsx",
+      "apps\\web\\src\\components\\ui\\table.tsx",
+      "apps\\web\\src\\components\\ui\\tabs.tsx",
+      "apps\\web\\src\\hooks\\useBotActions.ts",
+      "apps\\web\\src\\hooks\\useLiveSocket.ts",
+      "apps\\web\\src\\hooks\\useTrader.ts",
+      "apps\\web\\src\\lib\\api.ts",
+      "apps\\web\\src\\lib\\format.test.ts",
+      "apps\\web\\src\\lib\\format.ts",
+      "apps\\web\\src\\lib\\labels.test.ts",
+      "apps\\web\\src\\lib\\labels.ts",
+      "apps\\web\\src\\lib\\types.ts",
+      "apps\\web\\src\\lib\\utils.test.ts",
+      "apps\\web\\src\\lib\\utils.ts",
+      "apps\\web\\src\\main.tsx",
+      "apps\\web\\src\\pages\\AnalyticsPage.tsx",
+      "apps\\web\\src\\pages\\LogsPage.tsx",
+      "apps\\web\\src\\pages\\OverviewPage.tsx",
+      "apps\\web\\src\\pages\\SettingsPage.tsx",
+      "apps\\web\\src\\pages\\TerminalPage.tsx",
+      "apps\\web\\src\\pages\\TradesPage.tsx",
+      "apps\\web\\src\\store\\live.ts",
+      "apps\\web\\src\\styles.css",
+      "apps\\web\\tsconfig.json",
+      "apps\\web\\vite.config.ts",
+      "apps\\web\\vitest.config.ts",
+      "CODE_OF_CONDUCT.md",
+      "codecov.yml",
+      "commitlint.config.cjs",
+      "CONTRIBUTING.md",
+      "docker-compose.yml",
+      "Dockerfile",
+      "docs\\adr\\0001-engine-architecture.md",
+      "docs\\adr\\0002-risk-guard.md",
+      "docs\\adr\\0003-sqlite-ledger.md",
+      "docs\\ARCHITECTURE.md",
+      "docs\\engineering\\ECC.md",
+      "docs\\engineering\\GITHUB_APPS.md",
+      "docs\\engineering\\QUALITY_GATES.md",
+      "docs\\MEXC.md",
+      "docs\\ROADMAP.md",
+      "docs\\RUNBOOK.md",
+      "docs\\screenshots\\README.md",
+      "docs\\TRADING_SAFETY.md",
+      "eslint.config.js",
+      "LICENSE",
+      "opencode.json",
+      "package.json",
+      "packages\\core\\package.json",
+      "packages\\core\\src\\analytics.ts",
+      "packages\\core\\src\\constants.ts",
+      "packages\\core\\src\\daily.ts",
+      "packages\\core\\src\\index.ts",
+      "packages\\core\\src\\indicators.ts",
+      "packages\\core\\src\\pnl.ts",
+      "packages\\core\\src\\risk.ts",
+      "packages\\core\\src\\schemas.ts",
+      "packages\\core\\src\\strategy.ts",
+      "packages\\core\\src\\types.ts",
+      "packages\\core\\tsconfig.json",
+      "packages\\core\\vitest.config.ts",
+      "packages\\mexc\\package.json",
+      "packages\\mexc\\src\\client.ts",
+      "packages\\mexc\\src\\errors.ts",
+      "packages\\mexc\\src\\index.ts",
+      "packages\\mexc\\src\\sign.ts",
+      "packages\\mexc\\src\\types.ts",
+      "packages\\mexc\\src\\ws.ts",
+      "packages\\mexc\\tsconfig.json",
+      "packages\\mexc\\vitest.config.ts",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      "README.md",
+      "renovate.json",
+      "scripts\\github\\apply-rulesets.mjs",
+      "scripts\\github\\apply-settings.mjs",
+      "scripts\\github\\backlog.mjs",
+      "scripts\\github\\bootstrap.mjs",
+      "scripts\\github\\README.md",
+      "scripts\\github\\rulesets\\main.json",
+      "scripts\\github\\rulesets\\tags.json",
+      "SECURITY.md",
+      "semgrep-local.json",
+      "semgrep-local2.json",
+      "skills\\api-design\\SKILL.md",
+      "skills\\backend-patterns\\SKILL.md",
+      "skills\\coding-standards\\SKILL.md",
+      "skills\\database-migrations\\SKILL.md",
+      "skills\\e2e-testing\\SKILL.md",
+      "skills\\eval-harness\\SKILL.md",
+      "skills\\frontend-patterns\\SKILL.md",
+      "skills\\search-first\\SKILL.md",
+      "skills\\security-review\\cloud-infrastructure-security.md",
+      "skills\\security-review\\SKILL.md",
+      "skills\\strategic-compact\\SKILL.md",
+      "skills\\tdd-workflow\\SKILL.md",
+      "skills\\verification-loop\\SKILL.md",
+      "tsconfig.base.json",
+      "turbo.json"
+    ]
+  },
+  "time": {
+    "rules": [],
+    "rules_parse_time": 0.381976842880249,
+    "profiling_times": {
+      "config_time": 5.890146017074585,
+      "core_time": 38.30359697341919,
+      "ignores_time": 0.0010046958923339844,
+      "total_time": 44.26073479652405
+    },
+    "parsing_time": {
+      "total_time": 3.432739496231079,
+      "per_file_time": { "mean": 0.0178788515428702, "std_dev": 0.004645435596911736 },
+      "very_slow_stats": { "time_ratio": 0.4475245890856846, "count_ratio": 0.015625 },
+      "very_slow_files": [
+        { "fpath": "apps\\web\\src\\pages\\SettingsPage.tsx", "ftime": 0.4704587459564209 },
+        { "fpath": "apps\\api\\src\\bot\\engine.ts", "ftime": 0.5205678939819336 },
+        { "fpath": "pnpm-lock.yaml", "ftime": 0.5452086925506592 }
+      ]
+    },
+    "scanning_time": {
+      "total_time": 12.68862247467041,
+      "per_file_time": { "mean": 0.021689952948154543, "std_dev": 0.009363323799042719 },
+      "very_slow_stats": { "time_ratio": 0.0, "count_ratio": 0.0 },
+      "very_slow_files": []
+    },
+    "matching_time": {
+      "total_time": 2.5305049419403076,
+      "per_file_and_rule_time": { "mean": 0.013179713239272436, "std_dev": 0.0008464449553613829 },
+      "very_slow_stats": { "time_ratio": 0.35385073283066887, "count_ratio": 0.036458333333333336 },
+      "very_slow_rules_on_files": [
+        {
+          "fpath": "apps\\api\\src\\bot\\engine.ts",
+          "rule_id": "typescript.react.security.react-insecure-request.react-insecure-request",
+          "time": 0.10983705520629883
+        },
+        {
+          "fpath": "apps\\api\\src\\routes\\status.ts",
+          "rule_id": "javascript.express.security.audit.remote-property-injection.remote-property-injection",
+          "time": 0.11010217666625977
+        },
+        {
+          "fpath": "pnpm-lock.yaml",
+          "rule_id": "yaml.github-actions.security.pull-request-target-code-checkout.pull-request-target-code-checkout",
+          "time": 0.1105809211730957
+        },
+        {
+          "fpath": "pnpm-lock.yaml",
+          "rule_id": "yaml.github-actions.security.run-shell-injection.run-shell-injection",
+          "time": 0.1111443042755127
+        },
+        {
+          "fpath": "packages\\mexc\\src\\client.ts",
+          "rule_id": "javascript.express.security.audit.remote-property-injection.remote-property-injection",
+          "time": 0.1240086555480957
+        },
+        {
+          "fpath": "apps\\api\\src\\db\\repo.ts",
+          "rule_id": "javascript.express.security.audit.remote-property-injection.remote-property-injection",
+          "time": 0.1317286491394043
+        },
+        {
+          "fpath": "apps\\web\\src\\pages\\SettingsPage.tsx",
+          "rule_id": "javascript.express.security.audit.remote-property-injection.remote-property-injection",
+          "time": 0.19801926612854004
+        }
+      ]
+    },
+    "tainting_time": {
+      "total_time": 0.9376919269561768,
+      "per_def_and_rule_time": { "mean": 0.002493861507862172, "std_dev": 9.420671657854508e-5 },
+      "very_slow_stats": { "time_ratio": 0.2498412775094617, "count_ratio": 0.005319148936170213 },
+      "very_slow_rules_on_defs": [
+        {
+          "fpath": "apps\\web\\src\\pages\\SettingsPage.tsx",
+          "fline": 62,
+          "rule_id": "javascript.express.security.audit.remote-property-injection.remote-property-injection",
+          "time": 0.09958839416503906
+        },
+        {
+          "fpath": "apps\\web\\src\\pages\\SettingsPage.tsx",
+          "fline": 62,
+          "rule_id": "javascript.express.security.require-request.require-request",
+          "time": 0.13468575477600098
+        }
+      ]
+    },
+    "fixpoint_timeouts": [],
+    "prefiltering": {
+      "project_level_time": 0.0,
+      "file_level_time": 0.0,
+      "rules_with_project_prefilters_ratio": 0.0,
+      "rules_with_file_prefilters_ratio": 0.9910022863042998,
+      "rules_selected_ratio": 0.016225385352902133,
+      "rules_matched_ratio": 0.016225385352902133
+    },
+    "targets": [],
+    "total_bytes": 0,
+    "max_memory_bytes": 567962816
+  },
+  "engine_requested": "OSS",
+  "skipped_rules": [],
+  "profiling_results": []
+}

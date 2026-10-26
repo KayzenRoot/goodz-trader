@@ -28,10 +28,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Scan history for secrets
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz | tar -xz
+          sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
+
+      - name: Scan history
+        run: |
+          gitleaks detect --source . --log-opts="--all" --redact --verbose --no-banner \
+            --report-format sarif --report-path gitleaks.sarif
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: gitleaks.sarif
+          category: gitleaks
 
   semgrep:
     name: Semgrep
@@ -49,11 +61,11 @@ jobs:
 
       - name: Scan
         run: |
-          semgrep scan --config=auto --error --sarif --output semgrep.sarif .
+          semgrep scan --config=auto --severity ERROR --error --sarif --output semgrep.sarif .
 
       - name: Upload SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: semgrep.sarif
           category: semgrep
