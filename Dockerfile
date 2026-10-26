@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:22-bookworm-slim AS build
+FROM node:26-bookworm-slim AS build
 RUN corepack enable && corepack prepare pnpm@11.20.0 --activate
 WORKDIR /app
 
@@ -15,7 +15,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-FROM node:22-bookworm-slim AS runner
+FROM node:26-bookworm-slim AS runner
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3001 \
