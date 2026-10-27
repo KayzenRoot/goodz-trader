@@ -37,6 +37,10 @@ optional: Recv-Window (seconds)
 The client signs the **exact** JSON string it sends. Do not re-stringify with a different key
 order after signing.
 
+CodeQL's `js/insufficient-password-hash` rule is a **false positive** for this protocol: MEXC
+requires HMAC-SHA256 over `apiKey + timestamp + params` as a request signature. It is not
+password storage; the alert is dismissed with that rationale.
+
 Clock skew >10s is rejected (`513`). The client syncs `/contract/ping` and adds the offset.
 
 ## Order fields

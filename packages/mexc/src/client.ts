@@ -79,7 +79,9 @@ export class MexcFuturesClient {
   private timeOffsetMs = 0;
 
   constructor(options: MexcClientOptions = {}) {
-    this.baseUrl = (options.baseUrl ?? 'https://contract.mexc.com').replace(/\/+$/, '');
+    let baseUrl = options.baseUrl ?? 'https://contract.mexc.com';
+    while (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+    this.baseUrl = baseUrl;
     this.apiKey = options.apiKey?.trim() ?? '';
     this.apiSecret = options.apiSecret?.trim() ?? '';
     this.timeoutMs = options.timeoutMs ?? 12_000;
