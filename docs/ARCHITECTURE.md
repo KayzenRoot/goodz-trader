@@ -93,7 +93,8 @@ signal -> evaluateEntry -> Trade(pending) + Order(pending) -> broker.placeOrder
    └──────────────> broker.closePosition -> Trade(closed) + fees + daily stats + equity
 ```
 
-- Every order has a client order ID (`gz_...`) used as `externalOid` for idempotency.
+- Every order has a client order ID (`gz_...`) used as `externalOid`; submit retries reuse it,
+  so a lost response cannot duplicate the order.
 - Market entries/exits are confirmed by polling the order state (live) or immediate fill
   (paper). Maker entries wait `makerTimeoutMs`; optional taker fallback creates a new trade.
 - Fees are persisted on the trade, not inferred later. `netPnl = grossPnl - fees`.
@@ -148,19 +149,22 @@ on connect and a heartbeat every 20s. Market frames are dropped if the socket bu
 
 ## Failure modes
 
-| Failure               | Behavior                                                                                         |
-| --------------------- | ------------------------------------------------------------------------------------------------ |
-| Market feed stale >5s | Entries blocked; status warning; exits still attempted? No — no fresh price, no synthetic fills. |
-| MEXC WS disconnect    | Feed status offline; reconnect with backoff; polling fallback for dashboard queries.             |
-| Order rejected        | Trade marked rejected; no position; error logged.                                                |
-| Close fails           | Position retained; error surfaced; kill switch remains available; manual close required.         |
-| Process crash         | Bot does not auto-resume; paper position can be adopted; live requires manual reconciliation.    |
-| SQLite locked         | 5s busy timeout; write failure logged; engine reports error.                                     |
-| Clock drift           | REST syncs server time; signature window 5s.                                                     |
+| Failure                   | Behavior                                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------------------ |
+| Market feed stale >5s     | Entries blocked; status warning; exits still attempted? No — no fresh price, no synthetic fills. |
+| MEXC public WS drop       | Feed status offline; reconnect with backoff; REST fallback for dashboard queries.                |
+| MEXC private WS drop      | Order/position stream reconnects; REST polling keeps working; on re-login the broker reconciles. |
+| Reconciliation divergence | Orphan/duplicate position or order, side/qty mismatch -> halt and require manual review.         |
+| Order rejected            | Trade marked rejected; no position; error logged.                                                |
+| Close fails               | Position retained; error surfaced; kill switch remains available; manual close required.         |
+| Process crash             | Bot does not auto-resume; paper position can be adopted; live requires manual reconciliation.    |
+| SQLite locked             | 5s busy timeout; write failure logged; engine reports error.                                     |
+| Clock drift               | REST syncs server time; signature window 5s.                                                     |
 
 ## Deliberate limitations (tracked as issues)
 
-- No private order/position WebSocket yet (live fill is polled).
+- Private WS is implemented, but live fill/cancel/partial-fill semantics still require a tiny
+  real validation (issue #17).
 - No full depth snapshot+version reconciliation for incremental WS depth (REST polling).
 - No backtester/replay of historical order book.
 - SQLite REAL money is not exact fixed-point.

@@ -52,8 +52,9 @@ Clock skew >10s is rejected (`513`). The client syncs `/contract/ping` and adds 
 | `positionId`  | recommended when closing                                          |
 | `reduceOnly`  | one-way mode only                                                 |
 
-The documentation labels order/cancel sections "under maintenance", but the endpoints are
-used by live trading. Validate with a tiny order before trusting them.
+Submit is retried on network/5xx with the **same** `externalOid`, so a lost response does not
+duplicate the order. The documentation labels order/cancel sections "under maintenance", but
+the endpoints are used by live trading. Validate with a tiny order before trusting them.
 
 ## Rate limits
 
@@ -86,10 +87,15 @@ Public:
 ```
 
 Ping every 15s; server disconnects after 60s without a ping. Reconnect with exponential
-backoff. Private login (`method: login`) signs `apiKey + reqTime`; private channels include
-`push.personal.order`, `order.deal`, `position`, `asset`. The current client only implements
-public ticker/deal; depth is REST-polled and live fills are polled. Private WS is a tracked
-issue.
+backoff.
+
+Private WS (`MexcPrivateWs`) logs in with the documented `apiKey + reqTime` signature,
+sends `personal.filter` for the active symbol, and consumes `push.personal.order`,
+`push.personal.order.deal`, `push.personal.position` and `push.personal.asset`. Orders are
+cached for fast fill detection, but REST remains the source of truth: every reconnect runs a
+full position/order reconciliation and divergences halt the bot instead of resuming blindly.
+Depth is still REST-polled because incremental depth needs snapshot/version reconciliation;
+live closes poll the order until filled.
 
 ## Contract metadata
 

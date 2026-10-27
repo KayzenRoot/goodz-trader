@@ -96,11 +96,28 @@ check by disabling it; fix the account/config.
 - Rotate API keys if credentials may have leaked.
 - Open an incident issue with evidence; do not silently patch and restart.
 
+## Idempotency
+
+- Every submit uses a unique `externalOid`; retries after a lost response reuse it.
+- Never generate a new client order ID to "retry" a submit; that is a duplicate order.
+- Cancels/close orders also carry stable IDs and are audited.
+
+## Private WS reconciliation
+
+- The private order/position stream is a latency optimization, not the source of truth.
+- Every re-login runs a full REST reconciliation. Orphan/duplicate positions or orders,
+  side mismatch or quantity mismatch **halt** the bot with an intervention message.
+- A pending entry that appears as a position before the local poll is deferred one tick; it
+  is not treated as orphan.
+- A start with an open position or leftover order is refused.
+
 ## Known limitations
 
-- No private WS / real-time order updates; live polls order state.
+- Private WS is implemented; live fill/cancel/partial-fill semantics still need the tiny
+  real validation in issue #17.
 - No partial-fill-aware close orchestration beyond the filled quantity.
-- No automatic reconciliation of a live position after a crash.
+- No automatic reconciliation of a live position after a **process crash**; startup refuses
+  until a human reviews it.
 - Funding, liquidation price and ADL are not projected in PnL.
 - Exact fixed-point ledger is not implemented; REAL values are rounded.
 - No backtester; synthetic history is not market data.

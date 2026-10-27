@@ -11,6 +11,8 @@ export interface BrokerReconciliation {
   openPositions: number;
   openOrders: number;
   message: string;
+  positions?: Array<{ positionId: number; symbol: string; side: Side; qty: number }>;
+  orders?: Array<{ orderId: string; clientOrderId: string; status: string }>;
 }
 
 export interface ClosePositionInput {

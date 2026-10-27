@@ -140,6 +140,34 @@ describe('LiveBroker operations', () => {
     expect(client.cancelAll).toHaveBeenCalled();
   });
 
+  it('returns detailed reconciliation for orphan detection', async () => {
+    const client = fakeClient();
+    client.getOpenPositions.mockResolvedValueOnce([
+      { positionId: 11, symbol: 'BTC_USDT', positionType: 1, holdVol: 2 },
+    ]);
+    client.getOpenOrders.mockResolvedValueOnce([
+      {
+        orderId: 22,
+        symbol: 'BTC_USDT',
+        price: 100,
+        vol: 1,
+        side: 1,
+        orderType: 2,
+        openType: 1,
+        state: 1,
+        externalOid: 'gz_22',
+      },
+    ]);
+    const live = broker(client);
+    const reconciliation = await live.reconcile();
+    expect(reconciliation).toMatchObject({
+      openPositions: 1,
+      openOrders: 1,
+      positions: [{ positionId: 11, side: 'long', qty: 2 }],
+      orders: [{ orderId: '22', clientOrderId: 'gz_22', status: '1' }],
+    });
+  });
+
   it('returns mark price and equity', async () => {
     const live = broker(fakeClient());
     expect(await live.getEquity()).toBe(1_000);

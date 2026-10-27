@@ -1,7 +1,7 @@
 import type { Candle, ContractSpec, OrderRequest } from '@goodz/core';
 
 import { MexcApiError } from './errors';
-import { buildAuthHeaders, buildQuery, type QueryValue } from './sign';
+import { buildAuthHeaders, buildQuery, signPayload, type QueryValue } from './sign';
 import {
   mapContract,
   mapDeal,
@@ -378,6 +378,20 @@ export class MexcFuturesClient {
     });
   }
 
+  /**
+   * Builds the documented private WS login payload. The WS signature is
+   * HMAC_SHA256(apiKey + reqTime) with no request body.
+   */
+  wsLoginPayload(): { apiKey: string; reqTime: string; signature: string } {
+    this.requireCredentials();
+    const reqTime = String(Math.floor(this.now() + this.timeOffsetMs));
+    return {
+      apiKey: this.apiKey,
+      reqTime,
+      signature: signPayload(this.apiKey, this.apiSecret, reqTime, ''),
+    };
+  }
+
   async placeOrder(input: OrderRequest): Promise<{ orderId: string }> {
     const side =
       input.action === 'open' ? (input.side === 'long' ? 1 : 3) : input.side === 'long' ? 4 : 2;
@@ -395,9 +409,12 @@ export class MexcFuturesClient {
     if (input.positionId) body.positionId = input.positionId;
     if (input.reduceOnly) body.reduceOnly = true;
 
+    // `externalOid` makes submit idempotent: retrying after a lost response
+    // returns the existing order instead of creating a duplicate.
     const data = await this.request<string | number>('POST', '/api/v1/private/order/submit', {
       auth: true,
       body,
+      retries: 2,
     });
     return { orderId: String(data) };
   }
