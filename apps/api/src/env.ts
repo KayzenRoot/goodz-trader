@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 import { envBooleanSchema } from '@goodz/core';
@@ -78,15 +78,25 @@ function readOrCreateDevSecret(nodeEnv: 'development' | 'test' | 'production'): 
   }
 
   const file = resolve('./.data/dev-secret');
-  if (existsSync(file)) {
-    const value = readFileSync(file, 'utf8').trim();
-    if (value.length >= 32) return value;
+  try {
+    const existing = readFileSync(file, 'utf8').trim();
+    if (existing.length >= 32) return existing;
+  } catch {
+    // File does not exist yet; create it below with an atomic exclusive write.
   }
 
   mkdirSync(dirname(file), { recursive: true });
   const value = randomBytes(32).toString('hex');
-  writeFileSync(file, value, { mode: 0o600 });
-  return value;
+  try {
+    writeFileSync(file, value, { mode: 0o600, flag: 'wx' });
+    return value;
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'EEXIST') {
+      const existing = readFileSync(file, 'utf8').trim();
+      if (existing.length >= 32) return existing;
+    }
+    throw error;
+  }
 }
 
 export function resetEnvForTests(): void {

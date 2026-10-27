@@ -190,7 +190,7 @@ export class PaperBroker implements Broker {
   }
 
   async reconcile(): Promise<BrokerReconciliation> {
-    return { openPositions: 0, openOrders: 0, message: 'paper broker' };
+    return { openPositions: 0, openOrders: 0, message: 'paper broker', positions: [], orders: [] };
   }
 
   async getExchangePositionId(): Promise<number | null> {

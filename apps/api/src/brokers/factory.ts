@@ -5,7 +5,7 @@ import type { Repository } from '../db/repo';
 import type { AppLogger } from '../lib/logger';
 import { LiveBroker } from './live';
 import { PaperBroker } from './paper';
-import type { Broker } from './types';
+import type { Broker, BrokerReconciliation } from './types';
 
 export function createBroker(input: {
   mode: 'paper' | 'live';
@@ -14,6 +14,8 @@ export function createBroker(input: {
   repo: Repository;
   client: MexcFuturesClient;
   logger: AppLogger;
+  wsUrl?: string;
+  onReconnect?: (reconciliation: BrokerReconciliation) => void;
 }): Broker {
   if (input.mode === 'live') {
     return new LiveBroker({
@@ -23,6 +25,9 @@ export function createBroker(input: {
       leverage: input.config.leverage,
       marginMode: input.config.marginMode,
       logger: input.logger.child('live-broker'),
+      privateStream: true,
+      privateWsUrl: input.wsUrl,
+      onReconnect: input.onReconnect,
     });
   }
 

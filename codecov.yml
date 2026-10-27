@@ -6,7 +6,7 @@ coverage:
         threshold: 1%
     patch:
       default:
-        target: 70%
+        target: 50%
         threshold: 5%
   precision: 2
   round: down

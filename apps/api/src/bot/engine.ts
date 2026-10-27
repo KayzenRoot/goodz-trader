@@ -26,8 +26,9 @@ import {
 } from '@goodz/core';
 import { MexcApiError, type MexcFuturesClient } from '@goodz/mexc';
 
-import { createBroker, type Broker } from '../brokers';
+import { createBroker, type Broker, type BrokerReconciliation } from '../brokers';
 import type { BotStateRowInternal, Repository } from '../db/repo';
+import { evaluateReconciliation } from './reconcile';
 import { HttpError } from '../lib/http-error';
 import type { AppLogger } from '../lib/logger';
 import { fallbackContract } from '../services/contracts';
@@ -80,6 +81,7 @@ export interface EngineOptions {
   notifier: NotificationService;
   now?: () => number;
   clientFactory?: () => MexcFuturesClient;
+  wsUrl?: string;
 }
 
 export class TradingEngine {
@@ -118,6 +120,7 @@ export class TradingEngine {
   private lastStaleLogAt = 0;
   private processing = false;
   private halting = false;
+  private deferredReconcile: BrokerReconciliation | null = null;
   private accountTimer: NodeJS.Timeout | null = null;
   private statusTimer: NodeJS.Timeout | null = null;
   private readonly now: () => number;
@@ -294,8 +297,27 @@ export class TradingEngine {
         repo: this.options.repo,
         client: this.client,
         logger: this.options.logger,
+        wsUrl: this.options.wsUrl,
+        onReconnect: (reconciliation) => this.handleBrokerReconnect(reconciliation),
       });
       await this.broker.connect();
+
+      const reconciliation = await this.broker.reconcile();
+      this.log('info', 'Broker reconciliation (start)', { ...reconciliation });
+      this.options.repo.insertAudit({
+        ts: this.now(),
+        actor: 'risk-engine',
+        action: 'broker.reconcile.start',
+        detail: JSON.stringify(reconciliation),
+        ip: null,
+      });
+      if (mode === 'live' && (reconciliation.openPositions > 0 || reconciliation.openOrders > 0)) {
+        throw new HttpError(
+          409,
+          'reconciliation_failed',
+          `Diverg?ncia na MEXC: ${reconciliation.openPositions} posi??o(?es), ${reconciliation.openOrders} ordem(ns) aberta(s). O bot n?o inicia.`,
+        );
+      }
 
       this.day = dayKey(this.now(), config.daily.resetHourUtc);
       this.rehydrateDay();
@@ -450,6 +472,11 @@ export class TradingEngine {
       this.emitStatus();
     } finally {
       this.processing = false;
+      if (this.deferredReconcile) {
+        const reconciliation = this.deferredReconcile;
+        this.deferredReconcile = null;
+        this.handleBrokerReconnect(reconciliation);
+      }
     }
   }
 
@@ -1033,6 +1060,45 @@ export class TradingEngine {
     this.persistState();
   }
 
+  private handleBrokerReconnect(reconciliation: BrokerReconciliation): void {
+    if (this.status !== 'running' || this.halting) return;
+    if (this.processing) {
+      this.deferredReconcile = reconciliation;
+      return;
+    }
+
+    const decision = evaluateReconciliation(
+      {
+        position: this.position ? { side: this.position.side, qty: this.position.qty } : null,
+        pending: Boolean(this.pending),
+      },
+      reconciliation,
+    );
+
+    this.log('warn', 'Private WS reconectado; estado reconciliado', {
+      ...reconciliation,
+      decision: decision.action,
+      code: decision.code,
+    });
+    this.options.repo.insertAudit({
+      ts: this.now(),
+      actor: 'risk-engine',
+      action: 'broker.reconcile.reconnect',
+      detail: JSON.stringify({ ...reconciliation, decision: decision.action, code: decision.code }),
+      ip: null,
+    });
+
+    if (decision.action === 'ok') return;
+    if (decision.action === 'await_fill') {
+      this.log('warn', decision.message);
+      return;
+    }
+
+    this.lastError = decision.message;
+    this.emitStatus();
+    void this.halt('error', false);
+  }
+
   private prepareOpenTrades(mode: BotMode): void {
     const openTrades = this.options.repo.getOpenTrades();
     for (const trade of openTrades) {
@@ -1051,6 +1117,10 @@ export class TradingEngine {
         );
       }
       if (this.position) {
+        if (this.position.tradeId === trade.id && this.position.symbol === trade.symbol) {
+          // A paper position adopted by bootstrap is already the runtime state.
+          continue;
+        }
         throw new HttpError(
           409,
           'multiple_positions',

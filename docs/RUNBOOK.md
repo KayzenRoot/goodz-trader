@@ -130,9 +130,19 @@ has uncheckpointed pages. Test restores quarterly.
 | Halt reason    | none     | read reason, fix guard, restart manually |
 | DB size        | stable   | prune equity/logs per retention policy   |
 
+## Private WS reconnect / reconciliation
+
+- The private WS reconnects with exponential backoff; REST polling continues meanwhile.
+- On every successful re-login, the broker performs a full position/order reconciliation and
+  writes an audit entry (`broker.reconcile.reconnect`).
+- Divergence (orphan/duplicate position, side/qty mismatch, orphan/duplicate order) halts the
+  bot. Check MEXC manually, reconcile the ledger, then restart.
+- A process crash does not auto-resume. Startup refuses live if the repo has an open trade or
+  the exchange has any position/order; resolve manually.
+
 ## Known operational gaps
 
 - No automated off-host backups.
 - No Prometheus endpoint yet (tracked issue).
-- No automatic live-position reconciliation after a crash.
+- No automatic live-position reconciliation after a **process crash** (manual review required).
 - No alert when the process dies (use Docker restart + external monitoring).

@@ -75,7 +75,8 @@ Details: [GITHUB_APPS.md](GITHUB_APPS.md).
 
 - **Live trading was not validated with real funds.** Market/cancel/partial-fill semantics are
   beta until issue #17.
-- Private WS/reconciliation is not implemented (issue #16).
+- Private WS/reconciliation is implemented in issue #16; live semantics (market/cancel/partial
+  fills) still require the blocked validation in issue #17.
 - Docker image was not built locally because the Docker daemon was unavailable; the file is
   provided and the Docker path is an open issue (#21).
 - SQLite REAL money is not exact fixed-point (issue #24).

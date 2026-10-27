@@ -7,7 +7,15 @@ import {
   type PositionView,
   type Side,
 } from '@goodz/core';
-import { MexcApiError, type MexcFuturesClient, mapOrderState, type RawOrder } from '@goodz/mexc';
+import {
+  MexcApiError,
+  MexcPrivateWs,
+  mapOrderState,
+  type MexcFuturesClient,
+  type RawAsset,
+  type RawOrder,
+  type RawPosition,
+} from '@goodz/mexc';
 
 import type { AppLogger } from '../lib/logger';
 import type { Broker, BrokerReconciliation, ClosePositionInput } from './types';
@@ -20,10 +28,18 @@ export interface LiveBrokerOptions {
   marginMode: 'isolated' | 'cross';
   logger: AppLogger;
   pollIntervalMs?: number;
+  privateStream?: boolean;
+  privateWsUrl?: string;
+  onReconnect?: (reconciliation: BrokerReconciliation) => void;
 }
 
 export class LiveBroker implements Broker {
   readonly mode = 'live' as const;
+  private privateWs: MexcPrivateWs | null = null;
+  private readonly cachedOrdersByClient = new Map<string, RawOrder>();
+  private readonly cachedOrdersById = new Map<string, RawOrder>();
+  private readonly cachedPositions = new Map<number, RawPosition>();
+  private cachedAsset: RawAsset | null = null;
 
   constructor(private readonly options: LiveBrokerOptions) {}
 
@@ -82,9 +98,12 @@ export class LiveBroker implements Broker {
       available: asset.availableBalance,
       mode,
     });
+    this.startPrivateStream();
   }
 
   async disconnect(): Promise<void> {
+    this.privateWs?.stop();
+    this.privateWs = null;
     try {
       await this.options.client.cancelAll(this.options.symbol);
     } catch (error) {
@@ -123,8 +142,15 @@ export class LiveBroker implements Broker {
     exchangeOrderId: string | null;
     clientOrderId: string;
   }): Promise<OrderResult | null> {
+    const cached =
+      this.cachedOrdersByClient.get(input.clientOrderId) ??
+      (input.exchangeOrderId ? this.cachedOrdersById.get(input.exchangeOrderId) : undefined);
+    if (cached && ['filled', 'canceled', 'rejected'].includes(mapOrderState(cached.state))) {
+      return this.mapOrder(cached, input.clientOrderId);
+    }
     if (!input.exchangeOrderId) return null;
     const raw = await this.options.client.getOrder(input.exchangeOrderId);
+    this.cacheOrder(raw);
     return this.mapOrder(raw, input.clientOrderId);
   }
 
@@ -184,6 +210,17 @@ export class LiveBroker implements Broker {
     return {
       openPositions: positions.length,
       openOrders: orders.length,
+      positions: positions.map((position) => ({
+        positionId: position.positionId,
+        symbol: position.symbol,
+        side: position.positionType === 1 ? 'long' : 'short',
+        qty: position.holdVol,
+      })),
+      orders: orders.map((order) => ({
+        orderId: String(order.orderId),
+        clientOrderId: order.externalOid ?? '',
+        status: String(order.state),
+      })),
       message: `posições=${positions.length} ordens=${orders.length}`,
     };
   }
@@ -197,6 +234,55 @@ export class LiveBroker implements Broker {
 
   markPrice(position: PositionView): number {
     return position.markPrice;
+  }
+
+  private startPrivateStream(): void {
+    if (this.options.privateStream === false) return;
+    const client = this.options.client;
+    if (typeof client.wsLoginPayload !== 'function') return;
+
+    const ws = new MexcPrivateWs({
+      url: this.options.privateWsUrl,
+      symbol: this.options.symbol,
+      login: () => client.wsLoginPayload(),
+      onOrder: (order) => this.cacheOrder(order),
+      onPosition: (position) => {
+        this.cachedPositions.set(position.positionId, position);
+      },
+      onAsset: (asset) => {
+        this.cachedAsset = asset;
+      },
+      onStatus: (status) => {
+        if (status.connected) {
+          this.options.logger.info('Private WS MEXC conectado', {
+            reconnects: status.reconnects,
+          });
+          if (status.reconnects > 0) {
+            void this.reconcile()
+              .then((reconciliation) => this.options.onReconnect?.(reconciliation))
+              .catch((error: unknown) => {
+                this.options.logger.error('Falha na reconcilia??o ap?s reconex?o', {
+                  error: error instanceof Error ? error.message : String(error),
+                });
+              });
+          }
+        } else {
+          this.options.logger.warn('Private WS MEXC desconectado', {
+            reconnects: status.reconnects,
+            message: status.message,
+          });
+        }
+      },
+    });
+    this.privateWs = ws;
+    ws.start();
+  }
+
+  private cacheOrder(order: RawOrder): void {
+    if (order.externalOid) this.cachedOrdersByClient.set(order.externalOid, order);
+    this.cachedOrdersById.set(String(order.orderId), order);
+    if (this.cachedOrdersByClient.size > 500) this.cachedOrdersByClient.clear();
+    if (this.cachedOrdersById.size > 500) this.cachedOrdersById.clear();
   }
 
   private async waitForFill(

@@ -32,7 +32,9 @@ Demo data is synthetic and clearly labeled. See [docs/screenshots](docs/screensh
 
 ## What it does
 
-- Connects to the MEXC USDT-perpetual contract API (signed REST + public WebSocket).
+- Connects to the MEXC USDT-perpetual contract API (signed REST + public/private WebSocket).
+- Reconciles positions/orders on private-WS reconnects and halts on divergence; submit is
+  idempotent by `externalOid`.
 - Runs a fast **momentum + order-flow scalper** with maker-first entries, timeout and
   optional taker fallback.
 - Sizes every order from a hard risk budget: max leverage, notional, margin, spread,

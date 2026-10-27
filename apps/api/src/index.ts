@@ -83,6 +83,7 @@ const engine = new TradingEngine({
   events,
   logger: logger.child('engine'),
   notifier,
+  wsUrl: env.MEXC_WS_URL,
 });
 
 engine.bootstrap();

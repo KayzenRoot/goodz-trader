@@ -318,6 +318,51 @@ describe('MexcFuturesClient market and account helpers', () => {
   });
 });
 
+describe('MexcFuturesClient private WS login and idempotent submit', () => {
+  it('builds the private WS login payload', () => {
+    const mexc = client(mockFetch(() => json({ success: true, code: 0, data: null })).fetchImpl);
+    const payload = mexc.wsLoginPayload();
+    expect(payload).toEqual({
+      apiKey: 'mx-key',
+      reqTime: String(now),
+      signature: signPayload('mx-key', 'mx-secret', String(now), ''),
+    });
+  });
+
+  it('retries a lost submit response with the same externalOid', async () => {
+    let calls = 0;
+    const mock = mockFetch(() => {
+      calls += 1;
+      if (calls === 1) throw new TypeError('connection reset');
+      return json({ success: true, code: 0, data: 987654321 });
+    });
+    const result = await client(mock.fetchImpl).placeOrder({
+      symbol: 'BTC_USDT',
+      side: 'long',
+      action: 'open',
+      type: 'market',
+      qty: 10,
+      leverage: 10,
+      marginMode: 'isolated',
+      clientOrderId: 'gz_idempotent_1',
+    });
+    expect(result.orderId).toBe('987654321');
+    expect(calls).toBe(2);
+    const first = JSON.parse(String(mock.calls[0]?.init.body));
+    const second = JSON.parse(String(mock.calls[1]?.init.body));
+    expect(first.externalOid).toBe('gz_idempotent_1');
+    expect(second.externalOid).toBe('gz_idempotent_1');
+  });
+
+  it('refuses WS login without credentials', () => {
+    const mexc = client(
+      mockFetch(() => json({ success: true, code: 0, data: null })).fetchImpl,
+      false,
+    );
+    expect(() => mexc.wsLoginPayload()).toThrow('API key');
+  });
+});
+
 describe('MexcFuturesClient connection test', () => {
   it('checks time, equity, positions, orders and position mode', async () => {
     const mock = mockFetch((call) => {
