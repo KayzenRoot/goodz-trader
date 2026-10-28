@@ -69,13 +69,44 @@ describe('MexcFuturesClient public endpoints', () => {
       priceScale: 2,
       volScale: 0,
       volUnit: 1,
+      priceUnit: 0.1,
       minVol: 1,
-      maxVol: 100,
+      maxVol: 1_000,
+      apiAllowed: true,
     };
     const mock = mockFetch(() => json({ success: true, code: 0, data: [raw] }));
     const mexc = client(mock.fetchImpl, false);
     await expect(mexc.getContract('BTC_USDT')).resolves.toMatchObject({ symbol: 'BTC_USDT' });
     await expect(mexc.getContract('ETH_USDT')).rejects.toBeInstanceOf(MexcApiError);
+  });
+
+  it('accepts a single contract object for the symbol query', async () => {
+    const raw = {
+      symbol: 'BTC_USDT',
+      baseCoin: 'BTC',
+      quoteCoin: 'USDT',
+      contractSize: 0.0001,
+      minLeverage: 1,
+      maxLeverage: 500,
+      priceScale: 1,
+      volScale: 0,
+      volUnit: 1,
+      priceUnit: 0.1,
+      minVol: 1,
+      maxVol: 400_000,
+      makerFeeRate: 0,
+      takerFeeRate: 0.0001,
+      apiAllowed: true,
+    };
+    const mock = mockFetch(() => json({ success: true, code: 0, data: raw }));
+    const mexc = client(mock.fetchImpl, false);
+    await expect(mexc.getContract('BTC_USDT')).resolves.toMatchObject({
+      symbol: 'BTC_USDT',
+      priceUnit: 0.1,
+      maxLeverage: 500,
+      makerFeeRate: 0,
+      takerFeeRate: 0.0001,
+    });
   });
 
   it('maps klines query parameters', async () => {
