@@ -168,6 +168,35 @@ describe('LiveBroker operations', () => {
     });
   });
 
+  it('maps a partial fill without assuming full quantity', async () => {
+    const client = fakeClient();
+    client.getOrder.mockResolvedValueOnce({
+      orderId: 77,
+      symbol: 'BTC_USDT',
+      price: 100,
+      vol: 10,
+      side: 1,
+      orderType: 2,
+      openType: 1,
+      state: 2,
+      dealVol: 4,
+      dealAvgPrice: 100.05,
+      takerFee: 0,
+      makerFee: 0.02,
+    });
+    const live = broker(client);
+    const result = await live.pollOrder({
+      exchangeOrderId: '77',
+      clientOrderId: 'gz_partial_77',
+    });
+    expect(result).toMatchObject({
+      status: 'open',
+      filledQty: 4,
+      avgPrice: 100.05,
+      fee: 0.02,
+    });
+  });
+
   it('returns mark price and equity', async () => {
     const live = broker(fakeClient());
     expect(await live.getEquity()).toBe(1_000);

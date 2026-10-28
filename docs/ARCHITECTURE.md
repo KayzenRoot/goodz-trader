@@ -96,7 +96,12 @@ signal -> evaluateEntry -> Trade(pending) + Order(pending) -> broker.placeOrder
 - Every order has a client order ID (`gz_...`) used as `externalOid`; submit retries reuse it,
   so a lost response cannot duplicate the order.
 - Market entries/exits are confirmed by polling the order state (live) or immediate fill
-  (paper). Maker entries wait `makerTimeoutMs`; optional taker fallback creates a new trade.
+  (paper). Maker entries wait `makerTimeoutMs`, may requote up to `maxRequotes` when the passive
+  price improves, and optionally fall back to one taker order.
+- Requote order: cancel -> confirm -> post replacement for the unfilled quantity with a new
+  client order ID. If cancel cannot be confirmed, no replacement is sent.
+- A partial fill becomes the position with the **actual** filled quantity; the remainder is
+  canceled and never chased. Entry fees are the sum of the exchange reports.
 - Fees are persisted on the trade, not inferred later. `netPnl = grossPnl - fees`.
 - A canceled maker attempt remains as `canceled` for audit; it has no PnL.
 

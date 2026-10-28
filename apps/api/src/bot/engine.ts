@@ -16,6 +16,7 @@ import {
   type CloseResult,
   type ContractSpec,
   type EngineStatus,
+  type EntryMetrics,
   type HaltReason,
   type MarketView,
   type OrderRecord,
@@ -29,6 +30,7 @@ import { MexcApiError, type MexcFuturesClient } from '@goodz/mexc';
 import { createBroker, type Broker, type BrokerReconciliation } from '../brokers';
 import type { BotStateRowInternal, Repository } from '../db/repo';
 import { evaluateReconciliation } from './reconcile';
+import { evaluateRequote, isPartialFill, makerLimitPrice, mergeFill, remainingQty } from './maker';
 import { HttpError } from '../lib/http-error';
 import type { AppLogger } from '../lib/logger';
 import { fallbackContract } from '../services/contracts';
@@ -70,6 +72,29 @@ interface PendingEntry {
   notionalUsd: number;
   marginUsd: number;
   reason: string;
+  createdAt: number;
+  lastRequoteAt: number;
+  requotes: number;
+  cancelFailures: number;
+  /** Total filled across every order attempt for this entry. */
+  filledQty: number;
+  /** Total filled before the currently resting order was placed. */
+  filledBase: number;
+  /** Fees accrued before the currently resting order was placed. */
+  feeBase: number;
+  fee: number;
+  avgPrice: number | null;
+}
+
+interface EntryMetricsInternal {
+  makerAttempts: number;
+  makerFills: number;
+  takerFallbacks: number;
+  requotes: number;
+  partialFills: number;
+  makerFillMsTotal: number;
+  makerFillSamples: number;
+  fallbackCostUsd: number;
 }
 
 export interface EngineOptions {
@@ -121,6 +146,7 @@ export class TradingEngine {
   private processing = false;
   private halting = false;
   private deferredReconcile: BrokerReconciliation | null = null;
+  private entryMetrics: EntryMetricsInternal = createEntryMetrics();
   private accountTimer: NodeJS.Timeout | null = null;
   private statusTimer: NodeJS.Timeout | null = null;
   private readonly now: () => number;
@@ -250,6 +276,27 @@ export class TradingEngine {
               message: 'Paper mode — nenhuma ordem real é enviada',
             },
       demoData: this.options.repo.countDemoTrades() > 0,
+      entryMetrics: this.entryMetricsView(),
+    };
+  }
+
+  private entryMetricsView(): EntryMetrics {
+    const metrics = this.entryMetrics;
+    return {
+      makerAttempts: metrics.makerAttempts,
+      makerFills: metrics.makerFills,
+      takerFallbacks: metrics.takerFallbacks,
+      requotes: metrics.requotes,
+      partialFills: metrics.partialFills,
+      makerFillRatePct:
+        metrics.makerAttempts > 0
+          ? round((metrics.makerFills / metrics.makerAttempts) * 100, 1)
+          : 0,
+      avgMakerFillMs:
+        metrics.makerFillSamples > 0
+          ? Math.round(metrics.makerFillMsTotal / metrics.makerFillSamples)
+          : null,
+      fallbackCostUsd: round(metrics.fallbackCostUsd),
     };
   }
 
@@ -271,6 +318,7 @@ export class TradingEngine {
       this.options.settings.assertLiveUnlocked(confirmation);
     }
 
+    this.entryMetrics = createEntryMetrics();
     this.status = 'starting';
     this.lastError = null;
     this.haltReason = null;
@@ -503,6 +551,10 @@ export class TradingEngine {
       await this.managePending(now);
     }
 
+    // managePending may halt (cancel failure, ambiguous requote). Never open a
+    // new trade after a halt decision.
+    if (this.status !== 'running') return;
+
     this.refreshEquity();
 
     const guard = this.guardTriggered();
@@ -601,11 +653,29 @@ export class TradingEngine {
     const now = this.now();
     const tradeId = id('trd');
     const clientOrderId = id('gz', 10);
-    const maker = !forceTaker && this.config.strategy.entryStyle === 'maker';
-    const limitPrice =
-      side === 'long'
-        ? roundToTick(snapshot.bid, this.contract.priceUnit)
-        : roundToTick(snapshot.ask, this.contract.priceUnit);
+    const wantsMaker = !forceTaker && this.config.strategy.entryStyle === 'maker';
+    const makerPrice = wantsMaker
+      ? makerLimitPrice({
+          side,
+          bid: snapshot.bid,
+          ask: snapshot.ask,
+          priceUnit: this.contract.priceUnit,
+        })
+      : null;
+    const maker = wantsMaker && makerPrice !== null;
+
+    if (wantsMaker && !maker) {
+      this.log('warn', 'Preço passivo inválido; avaliando fallback taker', {
+        bid: snapshot.bid,
+        ask: snapshot.ask,
+        priceUnit: this.contract.priceUnit,
+      });
+      if (!this.config.strategy.allowTakerFallback) {
+        this.logBlocked('invalid_price', 'Sem preço passivo válido para post-only', now);
+        return;
+      }
+    }
+    if (maker) this.entryMetrics.makerAttempts += 1;
 
     const trade: Trade = {
       id: tradeId,
@@ -634,6 +704,7 @@ export class TradingEngine {
       isDemo: false,
       meta: {
         entryStyle: maker ? 'maker' : 'taker',
+        requestedQty: decision.qty,
         stopPrice: decision.stopDistance,
       },
     };
@@ -648,7 +719,7 @@ export class TradingEngine {
       side,
       action: 'open',
       type: maker ? 'limit' : 'market',
-      price: maker ? limitPrice : null,
+      price: maker ? makerPrice : null,
       qty: decision.qty,
       filledQty: 0,
       avgPrice: null,
@@ -668,7 +739,7 @@ export class TradingEngine {
         action: 'open',
         type: maker ? 'limit' : 'market',
         qty: decision.qty,
-        price: maker ? limitPrice : undefined,
+        price: maker ? (makerPrice ?? undefined) : undefined,
         postOnly: maker,
         leverage: this.config.leverage,
         marginMode: this.config.marginMode,
@@ -690,43 +761,122 @@ export class TradingEngine {
           symbol: this.symbol,
           side,
           qty: decision.qty,
-          price: maker ? limitPrice : snapshot.mid,
+          price: maker ? (makerPrice ?? snapshot.mid) : snapshot.mid,
           expiresAt: now + (maker ? this.config.strategy.makerTimeoutMs : 5_000),
           fallbackAttempted: !maker,
           riskUsd: decision.riskUsd,
           notionalUsd: decision.notionalUsd,
           marginUsd: decision.marginUsd,
           reason,
+          createdAt: now,
+          lastRequoteAt: now,
+          requotes: 0,
+          cancelFailures: 0,
+          filledQty: 0,
+          filledBase: 0,
+          feeBase: 0,
+          fee: 0,
+          avgPrice: null,
         };
+        this.absorbFill(this.pending, result);
         this.log('info', 'Ordem de entrada aberta', {
           tradeId,
           side,
-          price: limitPrice,
+          type: maker ? 'maker' : 'taker',
+          price: this.pending.price,
           qty: decision.qty,
         });
+        this.emitStatus();
         return;
       }
 
       await this.rejectTrade(trade, order, result.error ?? 'Ordem rejeitada');
+      if (maker) await this.tryTakerFallback(side, reason, 'post_only_rejected');
     } catch (error) {
       const message = friendlyError(error);
-      await this.rejectTrade(trade, order, message);
-      this.log('warn', 'Falha ao enviar ordem de entrada', { error: message });
+      if (trade.status === 'pending') await this.rejectTrade(trade, order, message);
+      this.lastError = message;
+      this.log('warn', 'Falha ao enviar ordem de entrada; estado da ordem é incerto', {
+        error: message,
+      });
+      // The submit may have reached the exchange even though the response was
+      // lost. Stop and cancel all instead of risking a second entry.
+      await this.halt('error', false);
     }
+  }
+
+  /**
+   * A maker entry that cannot rest is retried once as taker only when the
+   * configuration allows it. The guard is re-evaluated so the fallback can
+   * never bypass risk limits.
+   */
+  private async tryTakerFallback(side: Side, reason: string, cause: string): Promise<void> {
+    if (!this.config.strategy.allowTakerFallback) return;
+    const snapshot = this.marketView.snapshot;
+    if (!snapshot) return;
+    const now = this.now();
+    const decision = evaluateEntry(
+      {
+        config: this.config,
+        contract: this.contract,
+        snapshot,
+        equity: this.currentEquity(),
+        availableBalance: this.currentAvailable(),
+        dayPnl: this.realizedDay,
+        dayTrades: this.tradesDay,
+        consecutiveLosses: this.consecutiveLosses,
+        lastLossAt: this.lastLossAt,
+        ordersLastMinute: this.ordersLastMinute(now),
+        openPositions: this.position ? 1 : 0,
+        now,
+        mode: this.mode,
+      },
+      side,
+    );
+    if (!decision.allowed) {
+      this.logBlocked(decision.reason, decision.detail, now);
+      return;
+    }
+
+    this.entryMetrics.takerFallbacks += 1;
+    this.entryMetrics.fallbackCostUsd +=
+      decision.notionalUsd *
+      Math.max(0, this.config.execution.feeTaker - this.config.execution.feeMaker);
+    this.log('warn', 'Fallback taker acionado', {
+      cause,
+      notional: round(decision.notionalUsd),
+    });
+    await this.placeEntry(side, decision, `${reason} fallback=taker`, true);
   }
 
   private async processFills(fills: OrderResult[]): Promise<void> {
     for (const fill of fills) {
-      if (!this.pending || fill.clientOrderId !== this.pending.clientOrderId) continue;
-      const trade = this.options.repo.getTrade(this.pending.tradeId);
+      const pending = this.pending;
+      if (!pending || fill.clientOrderId !== pending.clientOrderId) continue;
+      const trade = this.options.repo.getTrade(pending.tradeId);
       if (!trade) {
         this.pending = null;
         return;
       }
+
+      const added = this.absorbFill(pending, fill);
+      if (added > 0 && fill.status === 'open' && isPartialFill(pending.qty, pending.filledQty)) {
+        this.log('info', 'Fill maker parcial recebido', {
+          tradeId: pending.tradeId,
+          filledQty: pending.filledQty,
+          requestedQty: pending.qty,
+          avgPrice: pending.avgPrice,
+        });
+        this.emitStatus();
+      }
+
       if (fill.status === 'filled') {
         await this.openPositionFromFill(trade, fill);
-      } else if (fill.status === 'rejected' || fill.status === 'canceled') {
-        await this.cancelPending(fill.status === 'rejected' ? 'rejected' : 'canceled');
+        return;
+      }
+      if (fill.status === 'rejected' || fill.status === 'canceled') {
+        await this.handlePendingTerminal(trade, fill);
+        return;
       }
     }
   }
@@ -735,83 +885,316 @@ export class TradingEngine {
     const pending = this.pending;
     if (!pending) return;
 
-    if (now < pending.expiresAt) {
-      if (this.mode === 'live' && this.broker) {
-        const result = await this.broker.pollOrder({
-          exchangeOrderId: pending.exchangeOrderId,
-          clientOrderId: pending.clientOrderId,
-        });
-        if (result?.status === 'filled') {
-          const trade = this.options.repo.getTrade(pending.tradeId);
-          if (trade) await this.openPositionFromFill(trade, result);
+    if (this.mode === 'live' && this.broker) {
+      const result = await this.pollPendingOrder(pending);
+      if (result) {
+        const trade = this.options.repo.getTrade(pending.tradeId);
+        if (!trade) {
+          this.pending = null;
           return;
         }
-        if (result?.status === 'rejected' || result?.status === 'canceled') {
-          await this.cancelPending(result.status);
+        this.applyPolledResult(pending, result);
+        if (result.status === 'filled') {
+          await this.openPositionFromFill(trade, result);
+          return;
+        }
+        if (result.status === 'rejected' || result.status === 'canceled') {
+          await this.handlePendingTerminal(trade, result);
           return;
         }
       }
+    }
+
+    if (now >= pending.expiresAt) {
+      await this.expirePending(now);
       return;
     }
 
-    await this.expirePending(now);
+    const trade = this.options.repo.getTrade(pending.tradeId);
+    const snapshot = this.marketView.snapshot;
+    if (!trade || !snapshot || pending.fallbackAttempted) return;
+    const decision = evaluateRequote({
+      side: pending.side,
+      bid: snapshot.bid,
+      ask: snapshot.ask,
+      priceUnit: this.contract.priceUnit,
+      currentPrice: pending.price,
+      requotes: pending.requotes,
+      maxRequotes: this.config.strategy.maxRequotes,
+      elapsedSinceLastQuoteMs: now - pending.lastRequoteAt,
+      requoteAfterMs: this.config.strategy.requoteAfterMs,
+      requoteMinMoveBps: this.config.strategy.requoteMinMoveBps,
+    });
+    if (decision.action !== 'requote') return;
+    this.log('info', 'Requote maker: preço passivo melhorou', {
+      tradeId: trade.id,
+      from: pending.price,
+      to: decision.price,
+      improvementBps: round(decision.improvementBps, 2),
+    });
+    await this.requotePending(trade, pending, now, { price: decision.price });
+  }
+
+  private async requotePending(
+    trade: Trade,
+    pending: PendingEntry,
+    now: number,
+    options: { price?: number; skipCancel?: boolean } = {},
+  ): Promise<void> {
+    if (this.pending !== pending) return;
+
+    if (options.skipCancel) {
+      this.markRestingOrder(pending, 'rejected');
+    } else {
+      const canceled = await this.cancelResting(pending);
+      if (!canceled) {
+        await this.handleCancelFailure(now);
+        return;
+      }
+      this.markRestingOrder(pending, 'canceled');
+
+      // The exchange may fill between our cancel and the acknowledgement.
+      const late = await this.pollPendingOrder(pending);
+      if (late) {
+        this.applyPolledResult(pending, late);
+        if (late.status === 'filled' || pending.filledQty > 0) {
+          await this.openPositionFromFill(trade, late);
+          return;
+        }
+      }
+    }
+
+    const price =
+      options.price ??
+      makerLimitPrice({
+        side: pending.side,
+        bid: this.marketView.snapshot?.bid ?? 0,
+        ask: this.marketView.snapshot?.ask ?? 0,
+        priceUnit: this.contract.priceUnit,
+      });
+    if (price === null) {
+      await this.finalizePending('requote_failed');
+      return;
+    }
+
+    const qty = remainingQty(pending.qty, pending.filledQty);
+    if (qty <= 0) {
+      await this.openPositionFromFill(trade, this.pendingFill(pending));
+      return;
+    }
+
+    const clientOrderId = id('gz', 10);
+    const order: OrderRecord = {
+      id: id('ord'),
+      tradeId: trade.id,
+      exchangeOrderId: null,
+      clientOrderId,
+      symbol: this.symbol,
+      side: pending.side,
+      action: 'open',
+      type: 'limit',
+      price,
+      qty,
+      filledQty: 0,
+      avgPrice: null,
+      fee: 0,
+      status: 'pending',
+      error: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.options.repo.insertOrder(order);
+    this.orderTimestamps.push(now);
+
+    pending.filledBase = pending.filledQty;
+    pending.feeBase = pending.fee;
+    pending.price = price;
+    pending.requotes += 1;
+    pending.lastRequoteAt = now;
+    this.entryMetrics.requotes += 1;
+
+    try {
+      const result = await this.broker?.placeOrder({
+        symbol: this.symbol,
+        side: pending.side,
+        action: 'open',
+        type: 'limit',
+        qty,
+        price,
+        postOnly: true,
+        leverage: this.config.leverage,
+        marginMode: this.config.marginMode,
+        clientOrderId,
+      });
+      if (!result) {
+        await this.finalizePending('requote_failed');
+        return;
+      }
+
+      this.applyOrderResult(order, result);
+      this.options.repo.updateOrder(order);
+      pending.orderId = order.id;
+      pending.clientOrderId = clientOrderId;
+      pending.exchangeOrderId = result.exchangeOrderId || null;
+      this.absorbFill(pending, result);
+
+      if (result.status === 'filled') {
+        await this.openPositionFromFill(trade, result);
+        return;
+      }
+      if (result.status === 'open') {
+        this.log('info', 'Requote maker enviado', {
+          tradeId: trade.id,
+          price,
+          qty,
+          requotes: pending.requotes,
+        });
+        this.emitStatus();
+        return;
+      }
+      await this.handlePendingTerminal(trade, result);
+    } catch (error) {
+      const message = friendlyError(error);
+      order.status = 'rejected';
+      order.error = message;
+      order.updatedAt = now;
+      this.options.repo.updateOrder(order);
+      this.log('warn', 'Falha no requote maker; estado da ordem é incerto', {
+        tradeId: trade.id,
+        error: message,
+      });
+      this.lastError = 'Falha ao enviar requote maker. O bot foi pausado para reconciliar ordens.';
+      this.finalizePending('requote_failed');
+      this.emitStatus();
+      await this.halt('error', false);
+    }
+  }
+
+  private async handlePendingTerminal(trade: Trade, result: OrderResult): Promise<void> {
+    const pending = this.pending;
+    if (!pending) return;
+    this.absorbFill(pending, result);
+
+    if (result.status === 'filled' || pending.filledQty > 0) {
+      await this.openPositionFromFill(trade, result);
+      return;
+    }
+
+    const maker = trade.meta.entryStyle === 'maker';
+    if (
+      result.status === 'rejected' &&
+      maker &&
+      !pending.fallbackAttempted &&
+      pending.requotes < this.config.strategy.maxRequotes
+    ) {
+      this.log('warn', 'Post-only rejeitado; tentando novo preço passivo', {
+        tradeId: trade.id,
+        requotes: pending.requotes,
+      });
+      await this.requotePending(trade, pending, this.now(), { skipCancel: true });
+      return;
+    }
+
+    const side = pending.side;
+    const reason = pending.reason;
+    const shouldFallback =
+      result.status === 'rejected' &&
+      maker &&
+      !pending.fallbackAttempted &&
+      this.config.strategy.allowTakerFallback;
+    await this.finalizePending(
+      result.status === 'rejected' ? 'rejected' : 'canceled',
+      result.status === 'rejected' ? 'rejected' : 'canceled',
+    );
+    if (shouldFallback) await this.tryTakerFallback(side, reason, 'post_only_rejected');
   }
 
   private async expirePending(now: number): Promise<void> {
     const pending = this.pending;
     if (!pending) return;
-    await this.cancelPending('expired');
+    const trade = this.options.repo.getTrade(pending.tradeId);
+    if (!trade) {
+      this.pending = null;
+      return;
+    }
 
-    if (
+    const canceled = await this.cancelResting(pending);
+    if (!canceled) {
+      await this.handleCancelFailure(now);
+      return;
+    }
+    this.markRestingOrder(pending, 'canceled');
+
+    // A late fill can land after the cancel was acknowledged.
+    const late = await this.pollPendingOrder(pending);
+    if (late) {
+      this.applyPolledResult(pending, late);
+    }
+    if (pending.filledQty > 0) {
+      await this.openPositionFromFill(trade, late ?? this.pendingFill(pending));
+      return;
+    }
+
+    const side = pending.side;
+    const reason = pending.reason;
+    const shouldFallback =
+      trade.meta.entryStyle === 'maker' &&
       !pending.fallbackAttempted &&
-      this.config.strategy.allowTakerFallback &&
-      this.marketView.snapshot
-    ) {
-      const trade = this.options.repo.getTrade(pending.tradeId);
-      if (!trade) return;
-      const decision = evaluateEntry(
-        {
-          config: this.config,
-          contract: this.contract,
-          snapshot: this.marketView.snapshot,
-          equity: this.currentEquity(),
-          availableBalance: this.currentAvailable(),
-          dayPnl: this.realizedDay,
-          dayTrades: this.tradesDay,
-          consecutiveLosses: this.consecutiveLosses,
-          lastLossAt: this.lastLossAt,
-          ordersLastMinute: this.ordersLastMinute(now),
-          openPositions: 0,
-          now,
-          mode: this.mode,
-        },
-        pending.side,
-      );
-      if (decision.allowed) {
-        await this.placeEntry(pending.side, decision, `${pending.reason} fallback=taker`, true);
+      this.config.strategy.allowTakerFallback;
+    await this.finalizePending('expired');
+    if (shouldFallback) await this.tryTakerFallback(side, reason, 'maker_timeout');
+  }
+
+  private async handleCancelFailure(now: number): Promise<void> {
+    const pending = this.pending;
+    if (!pending) return;
+    pending.cancelFailures += 1;
+
+    const late = await this.pollPendingOrder(pending);
+    if (late) {
+      this.applyPolledResult(pending, late);
+      if (late.status === 'filled' || pending.filledQty > 0) {
+        const trade = this.options.repo.getTrade(pending.tradeId);
+        if (trade) await this.openPositionFromFill(trade, late);
+        return;
       }
     }
+
+    if (pending.cancelFailures >= 3) {
+      this.lastError =
+        'Não foi possível cancelar a ordem maker. O bot foi pausado para evitar ordem duplicada.';
+      this.log('error', this.lastError, { tradeId: pending.tradeId });
+      this.emitStatus();
+      void this.halt('error', false);
+      return;
+    }
+
+    pending.expiresAt = now + 500;
+    this.log('warn', 'Cancelamento da ordem maker falhou; nova tentativa em 500ms', {
+      tradeId: pending.tradeId,
+      attempt: pending.cancelFailures,
+    });
+    this.emitStatus();
   }
 
   private async cancelPending(reason: string): Promise<void> {
     const pending = this.pending;
     if (!pending) return;
-    this.pending = null;
-    try {
-      await this.broker?.cancelOrder({
-        exchangeOrderId: pending.exchangeOrderId,
-        clientOrderId: pending.clientOrderId,
+    const canceled = await this.cancelResting(pending);
+    if (!canceled) {
+      this.log('warn', 'Cancelamento não confirmado; o broker fará cancel_all no shutdown', {
+        tradeId: pending.tradeId,
       });
-    } catch (error) {
-      this.log('warn', 'Falha ao cancelar ordem pendente', { error: friendlyError(error) });
     }
-    const order = this.options.repo.getOrderByClientId(pending.clientOrderId);
-    if (order && order.status !== 'filled') {
-      order.status = 'canceled';
-      order.updatedAt = this.now();
-      this.options.repo.updateOrder(order);
-    }
+
     const trade = this.options.repo.getTrade(pending.tradeId);
+    if (pending.filledQty > 0 && trade) {
+      // Never discard a partial fill: it is a real exchange position.
+      await this.openPositionFromFill(trade, this.pendingFill(pending));
+      return;
+    }
+    this.markRestingOrder(pending, 'canceled');
+    this.pending = null;
     if (trade && trade.status === 'pending') {
       trade.status = 'canceled';
       trade.closeReason = reason;
@@ -821,11 +1204,117 @@ export class TradingEngine {
     this.emitStatus();
   }
 
+  private async cancelResting(pending: PendingEntry): Promise<boolean> {
+    try {
+      await this.broker?.cancelOrder({
+        exchangeOrderId: pending.exchangeOrderId,
+        clientOrderId: pending.clientOrderId,
+      });
+      return true;
+    } catch (error) {
+      this.log('warn', 'Falha ao cancelar ordem pendente', {
+        tradeId: pending.tradeId,
+        error: friendlyError(error),
+      });
+      return false;
+    }
+  }
+
+  private async pollPendingOrder(pending: PendingEntry): Promise<OrderResult | null> {
+    try {
+      return (
+        (await this.broker?.pollOrder({
+          exchangeOrderId: pending.exchangeOrderId,
+          clientOrderId: pending.clientOrderId,
+        })) ?? null
+      );
+    } catch (error) {
+      this.log('warn', 'Falha ao consultar ordem pendente', {
+        tradeId: pending.tradeId,
+        error: friendlyError(error),
+      });
+      return null;
+    }
+  }
+
+  private applyPolledResult(pending: PendingEntry, result: OrderResult): void {
+    this.absorbFill(pending, result);
+    const order = this.options.repo.getOrderByClientId(pending.clientOrderId);
+    if (!order) return;
+    this.applyOrderResult(order, result);
+    order.filledQty = Math.max(0, pending.filledQty - pending.filledBase);
+    this.options.repo.updateOrder(order);
+  }
+
+  /**
+   * Adds the current order's fills to the pending entry. `filledBase` keeps
+   * fills from earlier requoted orders, so the total is never double-counted.
+   */
+  private absorbFill(pending: PendingEntry, result: OrderResult): number {
+    const merged = mergeFill(
+      {
+        requestedQty: pending.qty,
+        filledBase: pending.filledBase,
+        filledQty: pending.filledQty,
+        avgPrice: pending.avgPrice,
+        price: pending.price,
+      },
+      { filledQty: result.filledQty ?? 0, avgPrice: result.avgPrice },
+    );
+
+    pending.fee = Number((pending.feeBase + (result.fee ?? 0)).toFixed(8));
+    if (merged.added <= 0) return 0;
+    pending.avgPrice = merged.avgPrice;
+    pending.filledQty = merged.filledQty;
+    return merged.added;
+  }
+
+  private markRestingOrder(pending: PendingEntry, status: 'canceled' | 'rejected'): void {
+    const order = this.options.repo.getOrderByClientId(pending.clientOrderId);
+    if (!order) return;
+    order.filledQty = Math.max(0, Number((pending.filledQty - pending.filledBase).toFixed(8)));
+    order.avgPrice = pending.avgPrice;
+    order.fee = Math.max(0, Number((pending.fee - pending.feeBase).toFixed(8)));
+    order.status = status;
+    order.updatedAt = this.now();
+    this.options.repo.updateOrder(order);
+  }
+
+  private finalizePending(reason: string, status: 'canceled' | 'rejected' = 'canceled'): void {
+    const pending = this.pending;
+    if (!pending) return;
+    this.markRestingOrder(pending, status);
+    this.pending = null;
+    const trade = this.options.repo.getTrade(pending.tradeId);
+    if (trade && trade.status === 'pending') {
+      trade.status = status === 'rejected' ? 'rejected' : 'canceled';
+      trade.closeReason = reason;
+      trade.updatedAt = this.now();
+      this.options.repo.updateTrade(trade);
+    }
+    this.emitStatus();
+  }
+
+  private pendingFill(pending: PendingEntry): OrderResult {
+    return {
+      exchangeOrderId: pending.exchangeOrderId ?? '',
+      clientOrderId: pending.clientOrderId,
+      status: 'filled',
+      filledQty: pending.filledQty,
+      avgPrice: pending.avgPrice,
+      fee: pending.fee,
+    };
+  }
+
   private async openPositionFromFill(trade: Trade, fill: OrderResult): Promise<void> {
-    const entryPrice = fill.avgPrice ?? this.pending?.price ?? this.marketView.snapshot?.mid;
-    if (!entryPrice) return;
-    const qty = fill.filledQty > 0 ? fill.filledQty : trade.qty;
-    const entryFee = fill.fee;
+    const pending = this.pending;
+    const requestedQty = pending?.qty ?? trade.qty;
+    const qty = pending && pending.filledQty > 0 ? pending.filledQty : fill.filledQty;
+    const entryPrice =
+      pending?.avgPrice ?? fill.avgPrice ?? pending?.price ?? this.marketView.snapshot?.mid;
+    if (!entryPrice || qty <= 0) return;
+    const entryFee = pending?.fee ?? fill.fee;
+    const partial = isPartialFill(requestedQty, qty);
     const notional = notionalUsd(entryPrice, qty, this.contract.contractSize);
     const margin = notional / this.config.leverage;
     const stopDistance = (entryPrice * this.config.strategy.stopLossBps) / 10_000;
@@ -853,12 +1342,19 @@ export class TradingEngine {
       stopPrice,
       takeProfitPrice,
       exchangeOrderId: fill.exchangeOrderId,
+      requestedQty,
+      partialFill: partial,
+      requotes: pending?.requotes ?? 0,
     };
     this.options.repo.updateTrade(trade);
 
     const order = this.options.repo.getOrderByClientId(fill.clientOrderId);
     if (order) {
       this.applyOrderResult(order, fill);
+      order.status = partial ? 'canceled' : 'filled';
+      order.filledQty = qty;
+      order.avgPrice = entryPrice;
+      order.fee = entryFee;
       this.options.repo.updateOrder(order);
     }
 
@@ -880,14 +1376,24 @@ export class TradingEngine {
       exchangePositionId:
         this.mode === 'live' ? await this.fetchExchangePositionId(trade.side) : null,
     };
+
+    if (trade.meta.entryStyle === 'maker') {
+      this.entryMetrics.makerFills += 1;
+      this.entryMetrics.makerFillMsTotal += Math.max(0, now - (pending?.createdAt ?? now));
+      this.entryMetrics.makerFillSamples += 1;
+    }
+    if (partial) this.entryMetrics.partialFills += 1;
+
     this.pending = null;
     this.options.events.publish('trade', trade);
-    this.log('info', 'Posição aberta', {
+    this.log('info', partial ? 'Posição aberta com fill parcial' : 'Posição aberta', {
       tradeId: trade.id,
       side: trade.side,
       entryPrice,
       qty,
+      requestedQty,
       notional: round(notional),
+      requotes: pending?.requotes ?? 0,
     });
     this.emitStatus();
     this.updateDailyStats();
@@ -1461,10 +1967,17 @@ function round(value: number, digits = 8): number {
   return Number(value.toFixed(digits));
 }
 
-function roundToTick(value: number, tick: number): number {
-  if (tick <= 0) return value;
-  const decimals = Math.min(12, Math.max(0, Math.ceil(-Math.log10(tick))));
-  return Number((Math.round(value / tick) * tick).toFixed(decimals));
+function createEntryMetrics(): EntryMetricsInternal {
+  return {
+    makerAttempts: 0,
+    makerFills: 0,
+    takerFallbacks: 0,
+    requotes: 0,
+    partialFills: 0,
+    makerFillMsTotal: 0,
+    makerFillSamples: 0,
+    fallbackCostUsd: 0,
+  };
 }
 
 function friendlyError(error: unknown): string {

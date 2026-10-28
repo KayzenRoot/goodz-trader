@@ -67,6 +67,9 @@ export const strategySchema = nested(
       entryStyle: z.enum(['maker', 'taker']).default('maker'),
       makerTimeoutMs: z.number().int().min(200).max(10_000).default(1_500),
       allowTakerFallback: z.boolean().default(true),
+      maxRequotes: z.number().int().min(0).max(5).default(1),
+      requoteAfterMs: z.number().int().min(100).max(5_000).default(400),
+      requoteMinMoveBps: z.number().min(0).max(50).default(1),
       maxSlippageBps: z.number().min(0).max(100).default(4),
     })
     .refine((value) => value.fastEma < value.slowEma, {

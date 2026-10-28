@@ -510,6 +510,26 @@ export function OverviewPage() {
               value={config?.strategy.entryStyle === 'maker' ? 'Maker-first' : 'Taker'}
             />
             <ConfigRow
+              label="Maker fills"
+              value={`${status.entryMetrics.makerFills}/${status.entryMetrics.makerAttempts} · ${status.entryMetrics.makerFillRatePct}%`}
+            />
+            <ConfigRow
+              label="Tempo médio maker"
+              value={
+                status.entryMetrics.avgMakerFillMs === null
+                  ? '—'
+                  : `${status.entryMetrics.avgMakerFillMs}ms`
+              }
+            />
+            <ConfigRow
+              label="Requotes / parciais"
+              value={`${status.entryMetrics.requotes} / ${status.entryMetrics.partialFills}`}
+            />
+            <ConfigRow
+              label="Fallback taker"
+              value={`${status.entryMetrics.takerFallbacks} · ${fmtMoney(status.entryMetrics.fallbackCostUsd)}`}
+            />
+            <ConfigRow
               label="Alavancagem"
               value={`${config?.leverage ?? '—'}x ${config?.marginMode ?? ''}`}
             />
@@ -523,7 +543,7 @@ export function OverviewPage() {
             <ConfigRow label="Meta / stop" value={`${fmtMoney(target)} / ${fmtMoney(lossLimit)}`} />
             <div className="border-line bg-panel-2/60 text-dim rounded-xl border p-3 text-[10px] leading-relaxed">
               O bot usa EMA rápida/lenta, desequilíbrio do book e delta de agressão. Entradas maker
-              têm timeout e fallback taker opcional.
+              têm timeout, requote limitado, fills parciais e fallback taker opcional.
             </div>
           </CardBody>
         </Card>

@@ -35,8 +35,10 @@ Demo data is synthetic and clearly labeled. See [docs/screenshots](docs/screensh
 - Connects to the MEXC USDT-perpetual contract API (signed REST + public/private WebSocket).
 - Reconciles positions/orders on private-WS reconnects and halts on divergence; submit is
   idempotent by `externalOid`.
-- Runs a fast **momentum + order-flow scalper** with maker-first entries, timeout and
-  optional taker fallback.
+- Runs a fast **momentum + order-flow scalper** with maker-first entries, bounded requotes,
+  partial-fill handling and optional taker fallback.
+- Exposes maker fill rate, average fill time, requote/partial counts and estimated fallback
+  cost in the bot status and overview.
 - Sizes every order from a hard risk budget: max leverage, notional, margin, spread,
   trades/day, orders/minute, consecutive-loss cooldown.
 - Enforces a **daily profit target** and **daily loss stop** net of fees, with automatic
@@ -92,7 +94,7 @@ Open **Configurações** in the dashboard. Everything the engine uses is there:
 - **Conexão MEXC** — API key/secret, encrypted at rest, masked in responses, test button.
 - **Modo & contrato** — paper/live, symbol, watchlist, leverage, isolated/cross, feed.
 - **Estratégia** — EMA fast/slow, trend bps, book imbalance, trade delta, TP/SL, trailing,
-  time stop, cooldown, maker timeout, taker fallback.
+  time stop, cooldown, maker timeout/requote, taker fallback.
 - **Risco por trade** — risk %, max notional, max margin, trades/day, orders/min,
   consecutive losses, spread, min equity.
 - **Guard diário** — daily profit target, daily loss limit, UTC reset hour, stop on target,

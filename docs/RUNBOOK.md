@@ -140,6 +140,21 @@ has uncheckpointed pages. Test restores quarterly.
 - A process crash does not auto-resume. Startup refuses live if the repo has an open trade or
   the exchange has any position/order; resolve manually.
 
+## Maker entries and partial fills
+
+- Post-only orders can sit unfilled. The engine requotes at most `maxRequotes` times, only
+  when the passive price improves by `requoteMinMoveBps`.
+- If a maker order only partially fills, the bot opens the position with that quantity and
+  cancels the remainder. Do not manually add the missing size unless that is a deliberate,
+  separately risk-checked trade.
+- A taker fallback is sent at most once per entry, after the maker timeout/rejection and only
+  if the risk guard still allows it.
+- An ambiguous submit/requote response (timeout, lost ack) halts the bot and triggers
+  `cancel_all`; do not restart until MEXC shows the account flat or you have reconciled it.
+- Check `entryMetrics` (maker fill rate, average fill time, requotes, partials, fallback cost)
+  before raising size. A low maker fill rate with high fallback cost means the edge may be
+  eaten by fees.
+
 ## Known operational gaps
 
 - No automated off-host backups.

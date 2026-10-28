@@ -240,6 +240,17 @@ export interface ApiHealth {
   message: string | null;
 }
 
+export interface EntryMetrics {
+  makerAttempts: number;
+  makerFills: number;
+  takerFallbacks: number;
+  requotes: number;
+  partialFills: number;
+  makerFillRatePct: number;
+  avgMakerFillMs: number | null;
+  fallbackCostUsd: number;
+}
+
 export interface EngineStatus {
   status: BotStatus;
   mode: BotMode;
@@ -267,6 +278,7 @@ export interface EngineStatus {
   feed: FeedStatus;
   api: ApiHealth;
   demoData: boolean;
+  entryMetrics: EntryMetrics;
 }
 
 export interface SecretStatus {

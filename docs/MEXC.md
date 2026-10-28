@@ -57,8 +57,11 @@ Clock skew >10s is rejected (`513`). The client syncs `/contract/ping` and adds 
 | `reduceOnly`  | one-way mode only                                                 |
 
 Submit is retried on network/5xx with the **same** `externalOid`, so a lost response does not
-duplicate the order. The documentation labels order/cancel sections "under maintenance", but
-the endpoints are used by live trading. Validate with a tiny order before trusting them.
+duplicate the order. Maker entries use post-only (`type: 2`); a requote cancels the resting
+order and only then posts a replacement for the unfilled quantity. Partial fills are read from
+`dealVol`/`dealAvgPrice` and fees from `makerFee`/`takerFee`; the engine never assumes a full
+fill. The documentation labels order/cancel sections "under maintenance", but the endpoints are
+used by live trading. Validate with a tiny order before trusting them.
 
 ## Rate limits
 
