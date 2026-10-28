@@ -1,0 +1,15 @@
+[Unit]
+Description=Goodz Trader WAL-safe backup
+Documentation=file:/opt/goodz-trader/docs/RUNBOOK.md
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/goodz-trader
+# Works even when the API container is stopped; the backup one-off mounts the
+# same data volume and writes a verified file under ./backups.
+ExecStart=/usr/bin/docker compose run --rm --entrypoint node -e BACKUP_DIR=/backups goodz apps/api/scripts/backup.mjs
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

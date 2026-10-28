@@ -29,6 +29,10 @@ const envSchema = z.object({
   RETENTION_AUDIT_DAYS: z.coerce.number().int().min(1).max(3_650).default(365),
   METRICS_ENABLED: envBooleanSchema.default(true),
   METRICS_TOKEN: z.string().min(16).max(256).optional(),
+  MARKET_RECORD_ENABLED: envBooleanSchema.default(false),
+  MARKET_RECORD_DIR: z.string().default('./.data/market'),
+  MARKET_RECORD_MAX_FILE_MB: z.coerce.number().int().min(1).max(10_000).default(256),
+  MARKET_RECORD_KEEP_DAYS: z.coerce.number().int().min(1).max(3_650).default(14),
 });
 
 export interface Env {
@@ -55,6 +59,10 @@ export interface Env {
   RETENTION_AUDIT_DAYS: number;
   METRICS_ENABLED: boolean;
   METRICS_TOKEN?: string;
+  MARKET_RECORD_ENABLED: boolean;
+  MARKET_RECORD_DIR: string;
+  MARKET_RECORD_MAX_FILE_MB: number;
+  MARKET_RECORD_KEEP_DAYS: number;
   authRequired: boolean;
 }
 
