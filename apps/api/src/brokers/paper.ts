@@ -39,6 +39,12 @@ export interface PaperBrokerOptions {
   feeTaker: number;
   slippageBps: number;
   logger: AppLogger;
+  /**
+   * Fraction of the remaining quantity filled on each crossing snapshot.
+   * 1 (default) fills the whole resting order; lower values let tests and
+   * paper drills exercise partial fills deterministically.
+   */
+  partialFillRatio?: number;
 }
 
 /**
@@ -49,8 +55,12 @@ export class PaperBroker implements Broker {
   readonly mode = 'paper' as const;
   private market: MarketView | null = null;
   private readonly orders = new Map<string, PaperOrder>();
+  private readonly partialFillRatio: number;
 
-  constructor(private readonly options: PaperBrokerOptions) {}
+  constructor(private readonly options: PaperBrokerOptions) {
+    const ratio = options.partialFillRatio ?? 1;
+    this.partialFillRatio = Number.isFinite(ratio) ? Math.min(1, Math.max(0.01, ratio)) : 1;
+  }
 
   async connect(): Promise<void> {}
 
@@ -176,17 +186,27 @@ export class PaperBroker implements Broker {
         (order.action === 'close' && order.side === 'short' && snapshot.ask <= order.price);
       if (!shouldFill) continue;
 
-      order.status = 'filled';
-      order.filledQty = order.qty;
+      const remaining = round(order.qty - order.filledQty);
+      if (remaining <= 0) continue;
+      const slice = this.fillSlice(remaining);
+      order.filledQty = round(order.filledQty + slice);
       order.avgPrice = order.price;
       order.fee = round(
-        notionalUsd(order.price, order.qty, this.options.contract.contractSize) *
-          (order.action === 'open' ? this.options.feeMaker : this.options.feeTaker),
+        order.fee +
+          notionalUsd(order.price, slice, this.options.contract.contractSize) *
+            (order.action === 'open' ? this.options.feeMaker : this.options.feeTaker),
       );
+      order.status = order.filledQty + 1e-9 >= order.qty ? 'filled' : 'open';
       fills.push(toResult(order));
     }
 
     return fills;
+  }
+
+  private fillSlice(remaining: number): number {
+    if (this.partialFillRatio >= 1) return remaining;
+    const slice = Math.floor(remaining * this.partialFillRatio);
+    return Math.min(remaining, Math.max(1, slice));
   }
 
   async reconcile(): Promise<BrokerReconciliation> {

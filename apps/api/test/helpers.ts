@@ -100,6 +100,16 @@ export function idleStatus(overrides: Partial<EngineStatus> = {}): EngineStatus 
       message: 'Paper mode',
     },
     demoData: false,
+    entryMetrics: {
+      makerAttempts: 0,
+      makerFills: 0,
+      takerFallbacks: 0,
+      requotes: 0,
+      partialFills: 0,
+      makerFillRatePct: 0,
+      avgMakerFillMs: null,
+      fallbackCostUsd: 0,
+    },
     ...overrides,
   };
 }

@@ -695,6 +695,24 @@ export function SettingsPage() {
                 onChange={(value) => updateSection('strategy', { makerTimeoutMs: value })}
               />
               <NumberField
+                label="Requotes máximos"
+                value={draft.strategy.maxRequotes}
+                step={1}
+                onChange={(value) => updateSection('strategy', { maxRequotes: value })}
+              />
+              <NumberField
+                label="Intervalo entre requotes (ms)"
+                value={draft.strategy.requoteAfterMs}
+                step={100}
+                onChange={(value) => updateSection('strategy', { requoteAfterMs: value })}
+              />
+              <NumberField
+                label="Movimento mínimo p/ requote (bps)"
+                value={draft.strategy.requoteMinMoveBps}
+                step={0.5}
+                onChange={(value) => updateSection('strategy', { requoteMinMoveBps: value })}
+              />
+              <NumberField
                 label="Slippage máx. (bps)"
                 value={draft.strategy.maxSlippageBps}
                 onChange={(value) => updateSection('strategy', { maxSlippageBps: value })}

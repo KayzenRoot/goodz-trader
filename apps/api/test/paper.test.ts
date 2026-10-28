@@ -112,6 +112,52 @@ describe('PaperBroker', () => {
     expect(result.error).toContain('Post-only');
   });
 
+  it('simulates deterministic partial maker fills', async () => {
+    const partial = new PaperBroker({
+      repo,
+      contract: btcContract,
+      startingBalance: 1_000,
+      feeMaker: 0.0002,
+      feeTaker: 0.0006,
+      slippageBps: 3,
+      logger: testLogger,
+      partialFillRatio: 0.5,
+    });
+
+    await partial.onSnapshot(market(99_990, 100_010));
+    const clientOrderId = 'gz_partial_1';
+    const placed = await partial.placeOrder(
+      order({ type: 'limit', price: 100_000, postOnly: true, clientOrderId }),
+    );
+    expect(placed.status).toBe('open');
+
+    const first = await partial.onSnapshot(market(99_980, 99_995));
+    expect(first).toHaveLength(1);
+    expect(first[0]).toMatchObject({
+      clientOrderId,
+      status: 'open',
+      filledQty: 5,
+      avgPrice: 100_000,
+    });
+    expect(first[0]?.fee).toBeGreaterThan(0);
+    expect(partial.getOpenOrderCount()).toBe(1);
+
+    const firstFee = first[0]?.fee ?? 0;
+    const nextFill = async () => (await partial.onSnapshot(market(99_980, 99_995)))[0] ?? null;
+    let last = await nextFill();
+    let snapshots = 0;
+    while (last && last.status !== 'filled' && snapshots < 10) {
+      snapshots += 1;
+      last = await nextFill();
+    }
+    expect(last).toMatchObject({ clientOrderId, status: 'filled', filledQty: 10 });
+    expect(last?.fee).toBeGreaterThan(firstFee);
+    expect(
+      await partial.pollOrder({ exchangeOrderId: clientOrderId, clientOrderId }),
+    ).toMatchObject({ status: 'filled', filledQty: 10 });
+    await partial.disconnect();
+  });
+
   it('cancels a resting order and disconnects cleanly', async () => {
     await broker.onSnapshot(market(99_990, 100_010));
     const result = await broker.placeOrder(order({ type: 'limit', price: 99_900, postOnly: true }));
