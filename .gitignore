@@ -55,3 +55,4 @@ semgrep-local*.json
 semgrep.sarif
 gitleaks.sarif
 results.json
+reports/
