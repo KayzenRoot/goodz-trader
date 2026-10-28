@@ -65,21 +65,37 @@ export class DbLogger implements AppLogger {
 
   debug(message: string, data?: Record<string, unknown>): void {
     this.logger.debug({ category: this.category, ...data }, message);
-    this.persist?.('debug', this.category, message, data ?? null);
+    this.safePersist('debug', message, data);
   }
 
   info(message: string, data?: Record<string, unknown>): void {
     this.logger.info({ category: this.category, ...data }, message);
-    this.persist?.('info', this.category, message, data ?? null);
+    this.safePersist('info', message, data);
   }
 
   warn(message: string, data?: Record<string, unknown>): void {
     this.logger.warn({ category: this.category, ...data }, message);
-    this.persist?.('warn', this.category, message, data ?? null);
+    this.safePersist('warn', message, data);
   }
 
   error(message: string, data?: Record<string, unknown>): void {
     this.logger.error({ category: this.category, ...data }, message);
-    this.persist?.('error', this.category, message, data ?? null);
+    this.safePersist('error', message, data);
+  }
+
+  /**
+   * Persistence must never crash the process. During shutdown the SQLite
+   * connection may already be closed while pending rejections/timers log.
+   */
+  private safePersist(
+    level: 'debug' | 'info' | 'warn' | 'error',
+    message: string,
+    data?: Record<string, unknown>,
+  ): void {
+    try {
+      this.persist?.(level, this.category, message, data ?? null);
+    } catch {
+      // stdout already has the record; drop the SQLite projection.
+    }
   }
 }

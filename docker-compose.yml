@@ -17,8 +17,6 @@ services:
       DATABASE_PATH: /data/goodz.db
       WEB_DIST_PATH: /app/apps/web/dist
       SEED_DEMO: 'false'
-      LIVE_TRADING_ENABLED: 'false'
-      COOKIE_SECURE: 'false'
       MAINTENANCE_ENABLED: 'true'
       RETENTION_LOGS_DAYS: '14'
       RETENTION_EQUITY_DAYS: '90'

@@ -24,6 +24,7 @@ pnpm dev
    - `LIVE_TRADING_ENABLED=false` until validated
    - `SEED_DEMO=false`
    - `COOKIE_SECURE=true` behind HTTPS
+   - Compose reads these from `.env`; it does not hardcode the live flag or cookie security.
 2. `docker compose up -d --build`
 3. Check `docker compose ps` and `curl http://127.0.0.1:3001/api/health`.
 4. Put it behind a reverse proxy with TLS. Publish only 443; keep the container port bound to
