@@ -60,6 +60,8 @@ interface EngineInternals {
   };
 }
 
+const now = Date.now();
+
 function view(bid: number, ask: number): MarketView {
   return {
     snapshot: {
@@ -85,8 +87,6 @@ function view(bid: number, ask: number): MarketView {
     latencyMs: 0,
   };
 }
-
-const now = Date.now();
 
 function pendingTrade(id: string): Trade {
   return {
@@ -168,6 +168,42 @@ function pendingEntry(tradeId: string, clientOrderId: string): PendingShape {
   };
 }
 
+function setupPending(
+  harness: Harness,
+  id: string,
+  overrides: Partial<PendingShape> = {},
+): { trade: Trade; clientOrderId: string; pending: PendingShape } {
+  const trade = pendingTrade(id);
+  const clientOrderId = `gz_${id}`;
+  harness.repo.insertTrade(trade);
+  harness.repo.insertOrder(pendingOrder(trade.id, clientOrderId));
+  const pending = { ...pendingEntry(trade.id, clientOrderId), ...overrides };
+  (harness.engine as unknown as EngineInternals).pending = pending;
+  return { trade, clientOrderId, pending };
+}
+
+function filledResult(clientOrderId: string, qty: number, avgPrice = 100, fee = 0.03): OrderResult {
+  return {
+    exchangeOrderId: '9',
+    clientOrderId,
+    status: 'filled',
+    filledQty: qty,
+    avgPrice,
+    fee,
+  };
+}
+
+function openResult(clientOrderId: string): OrderResult {
+  return {
+    exchangeOrderId: '2',
+    clientOrderId,
+    status: 'open',
+    filledQty: 0,
+    avgPrice: null,
+    fee: 0,
+  };
+}
+
 describe('maker partial fill adoption', () => {
   let harness: Harness;
   let internal: EngineInternals;
@@ -182,28 +218,14 @@ describe('maker partial fill adoption', () => {
   });
 
   it('opens the position with the filled quantity and real fees', async () => {
-    const trade = pendingTrade('trd_partial');
-    const clientOrderId = 'gz_partial';
-    harness.repo.insertTrade(trade);
-    harness.repo.insertOrder(pendingOrder(trade.id, clientOrderId));
-    internal.pending = pendingEntry(trade.id, clientOrderId);
+    const { trade, clientOrderId, pending } = setupPending(harness, 'trd_partial');
+    internal.pending = { ...pending, filledQty: 4, fee: 0.02 };
 
-    await internal.openPositionFromFill(trade, {
-      exchangeOrderId: '42',
-      clientOrderId,
-      status: 'filled',
-      filledQty: 4,
-      avgPrice: 100_000,
-      fee: 0.02,
-    });
+    await internal.openPositionFromFill(trade, filledResult(clientOrderId, 4, 100_000, 0.02));
 
     const stored = harness.repo.getTrade(trade.id);
     expect(stored).toMatchObject({ status: 'open', qty: 4, fees: 0.02, entryPrice: 100_000 });
-    expect(stored?.meta).toMatchObject({
-      requestedQty: 10,
-      partialFill: true,
-      requotes: 1,
-    });
+    expect(stored?.meta).toMatchObject({ requestedQty: 10, partialFill: true, requotes: 1 });
     expect(harness.repo.getOrderByClientId(clientOrderId)).toMatchObject({
       status: 'canceled',
       filledQty: 4,
@@ -221,15 +243,8 @@ describe('maker partial fill adoption', () => {
   });
 
   it('adopts a partial fill instead of canceling the trade', async () => {
-    const trade = pendingTrade('trd_cancel_partial');
-    const clientOrderId = 'gz_cancel_partial';
-    harness.repo.insertTrade(trade);
-    harness.repo.insertOrder(pendingOrder(trade.id, clientOrderId));
-    internal.pending = {
-      ...pendingEntry(trade.id, clientOrderId),
-      filledQty: 3,
-      fee: 0.015,
-    };
+    const { trade, pending } = setupPending(harness, 'trd_cancel_partial');
+    internal.pending = { ...pending, filledQty: 3, fee: 0.015 };
     const cancelOrder = vi.fn(async () => undefined);
     internal.broker = { cancelOrder };
 
@@ -244,12 +259,7 @@ describe('maker partial fill adoption', () => {
   });
 
   it('requotes when the passive price improves', async () => {
-    const trade = pendingTrade('trd_requote');
-    const oldClientOrderId = 'gz_requote_1';
-    harness.repo.insertTrade(trade);
-    harness.repo.insertOrder(pendingOrder(trade.id, oldClientOrderId));
-    internal.pending = {
-      ...pendingEntry(trade.id, oldClientOrderId),
+    const { clientOrderId: oldClientOrderId } = setupPending(harness, 'trd_requote', {
       price: 100,
       filledQty: 0,
       avgPrice: null,
@@ -257,23 +267,12 @@ describe('maker partial fill adoption', () => {
       requotes: 0,
       lastRequoteAt: now - 1_000,
       expiresAt: now + 5_000,
-    };
+    });
     internal.marketView = view(100.5, 101);
 
     const cancelOrder = vi.fn(async () => undefined);
-    const placeOrder = vi.fn(
-      async (input: {
-        qty: number;
-        price?: number;
-        clientOrderId: string;
-      }): Promise<OrderResult> => ({
-        exchangeOrderId: '2',
-        clientOrderId: input.clientOrderId,
-        status: 'open',
-        filledQty: 0,
-        avgPrice: null,
-        fee: 0,
-      }),
+    const placeOrder = vi.fn(async (input: { clientOrderId: string }) =>
+      openResult(input.clientOrderId),
     );
     internal.broker = { cancelOrder, placeOrder };
 
@@ -289,35 +288,19 @@ describe('maker partial fill adoption', () => {
   });
 
   it('falls back to one taker order after the maker timeout', async () => {
-    const trade = pendingTrade('trd_timeout');
-    const clientOrderId = 'gz_timeout';
-    harness.repo.insertTrade(trade);
-    harness.repo.insertOrder(pendingOrder(trade.id, clientOrderId));
-    internal.pending = {
-      ...pendingEntry(trade.id, clientOrderId),
+    const { trade, clientOrderId } = setupPending(harness, 'trd_timeout', {
       filledQty: 0,
       avgPrice: null,
       fee: 0,
       requotes: 1,
       lastRequoteAt: now - 2_000,
       expiresAt: now - 1,
-    };
+    });
     internal.marketView = view(100, 100.05);
 
     const cancelOrder = vi.fn(async () => undefined);
-    const placeOrder = vi.fn(
-      async (input: {
-        qty: number;
-        price?: number;
-        clientOrderId: string;
-      }): Promise<OrderResult> => ({
-        exchangeOrderId: '9',
-        clientOrderId: input.clientOrderId,
-        status: 'filled',
-        filledQty: input.qty,
-        avgPrice: 100.05,
-        fee: 0.03,
-      }),
+    const placeOrder = vi.fn(async (input: { qty: number; clientOrderId: string }) =>
+      filledResult(input.clientOrderId, input.qty, 100.05),
     );
     internal.broker = { cancelOrder, placeOrder };
 
@@ -328,33 +311,22 @@ describe('maker partial fill adoption', () => {
     expect(internal.pending).toBeNull();
     expect(internal.entryMetrics.takerFallbacks).toBe(1);
     expect(harness.repo.getTrade(trade.id)?.status).toBe('canceled');
+    expect(harness.repo.getOrderByClientId(clientOrderId)).toMatchObject({ status: 'canceled' });
     expect(harness.engine.getStatus().position).toMatchObject({ side: 'long' });
   });
 
   it('adopts a full fill reported by the live poll', async () => {
-    const trade = pendingTrade('trd_live_poll');
-    const clientOrderId = 'gz_live_poll';
-    harness.repo.insertTrade(trade);
-    harness.repo.insertOrder(pendingOrder(trade.id, clientOrderId));
-    internal.pending = {
-      ...pendingEntry(trade.id, clientOrderId),
+    const { trade, clientOrderId } = setupPending(harness, 'trd_live_poll', {
       filledQty: 0,
       avgPrice: null,
       fee: 0,
       requotes: 0,
       expiresAt: now + 5_000,
-    };
+    });
     internal.mode = 'live';
     internal.marketView = view(100, 100.05);
     internal.broker = {
-      pollOrder: vi.fn(async (): Promise<OrderResult> => ({
-        exchangeOrderId: '5',
-        clientOrderId,
-        status: 'filled',
-        filledQty: 10,
-        avgPrice: 100.02,
-        fee: 0.02,
-      })),
+      pollOrder: vi.fn(async () => filledResult(clientOrderId, 10, 100.02, 0.02)),
     };
 
     await internal.managePending(now);
@@ -369,31 +341,15 @@ describe('maker partial fill adoption', () => {
   });
 
   it('falls back after a rejection when requotes are exhausted', async () => {
-    const trade = pendingTrade('trd_reject_fallback');
-    const clientOrderId = 'gz_reject_fallback';
-    harness.repo.insertTrade(trade);
-    harness.repo.insertOrder(pendingOrder(trade.id, clientOrderId));
-    internal.pending = {
-      ...pendingEntry(trade.id, clientOrderId),
+    const { trade, clientOrderId } = setupPending(harness, 'trd_reject_fallback', {
       filledQty: 0,
       avgPrice: null,
       fee: 0,
       requotes: 1,
-    };
+    });
     internal.marketView = view(100, 100.05);
-    const placeOrder = vi.fn(
-      async (input: {
-        qty: number;
-        price?: number;
-        clientOrderId: string;
-      }): Promise<OrderResult> => ({
-        exchangeOrderId: '10',
-        clientOrderId: input.clientOrderId,
-        status: 'filled',
-        filledQty: input.qty,
-        avgPrice: 100.05,
-        fee: 0.03,
-      }),
+    const placeOrder = vi.fn(async (input: { qty: number; clientOrderId: string }) =>
+      filledResult(input.clientOrderId, input.qty, 100.05),
     );
     internal.broker = { placeOrder };
 
@@ -413,30 +369,18 @@ describe('maker partial fill adoption', () => {
   });
 
   it('adopts a late fill when the cancel fails', async () => {
-    const trade = pendingTrade('trd_late_fill');
-    const clientOrderId = 'gz_late_fill';
-    harness.repo.insertTrade(trade);
-    harness.repo.insertOrder(pendingOrder(trade.id, clientOrderId));
-    internal.pending = {
-      ...pendingEntry(trade.id, clientOrderId),
+    const { trade, clientOrderId } = setupPending(harness, 'trd_late_fill', {
       filledQty: 0,
       avgPrice: null,
       fee: 0,
       expiresAt: now - 1,
-    };
+    });
     internal.marketView = view(100, 100.05);
     internal.broker = {
       cancelOrder: vi.fn(async () => {
         throw new Error('network');
       }),
-      pollOrder: vi.fn(async (): Promise<OrderResult> => ({
-        exchangeOrderId: '6',
-        clientOrderId,
-        status: 'filled',
-        filledQty: 2,
-        avgPrice: 100,
-        fee: 0.01,
-      })),
+      pollOrder: vi.fn(async () => filledResult(clientOrderId, 2, 100, 0.01)),
     };
 
     await internal.managePending(now);
@@ -447,19 +391,13 @@ describe('maker partial fill adoption', () => {
   });
 
   it('cancels safely when no passive price is available for a requote', async () => {
-    const trade = pendingTrade('trd_no_price');
-    const clientOrderId = 'gz_no_price';
-    harness.repo.insertTrade(trade);
-    harness.repo.insertOrder(pendingOrder(trade.id, clientOrderId));
-    const pending = {
-      ...pendingEntry(trade.id, clientOrderId),
+    const { trade, pending } = setupPending(harness, 'trd_no_price', {
       price: 100,
       filledQty: 0,
       avgPrice: null,
       fee: 0,
       requotes: 0,
-    };
-    internal.pending = pending;
+    });
     internal.marketView = view(100, 100);
     const placeOrder = vi.fn();
     internal.broker = { placeOrder };
