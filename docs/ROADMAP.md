@@ -3,6 +3,14 @@
 The **GitHub issue tracker is the source of truth**. This document is a map of the
 milestones and the intended production sequence. Issue numbers are live links.
 
+## Current status
+
+- M0, M1, M3, M4 and M5 are complete on `main` (tests, E2E, Docker, backup drill,
+  observability, dashboard, backtest, ledger micros).
+- M2 is complete except **[#17](https://github.com/KayzenRoot/goodz-trader/issues/17)**, which
+  is **blocked on real MEXC credentials and a deliberately tiny live order**. Live trading
+  remains disabled until that validation is recorded.
+
 ## Milestones
 
 | Milestone                        | Goal                              | Exit criteria                                                 |
