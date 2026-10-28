@@ -1,5 +1,5 @@
 import { botConfigSchema, type BotConfig } from '@goodz/core';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   Bell,
@@ -27,6 +27,7 @@ import { Checkbox, Field, Input, Select } from '@/components/ui/input';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+import { LiveReadiness } from '@/components/settings/LiveReadiness';
 import { useContract, useSettings, useStatus } from '@/hooks/useTrader';
 import { api, ApiError } from '@/lib/api';
 import { fmtBps, fmtMoney } from '@/lib/format';
@@ -63,6 +64,12 @@ export function SettingsPage() {
   const settings = useSettings();
   const status = useStatus();
   const queryClient = useQueryClient();
+  const readiness = useQuery({
+    queryKey: ['live-readiness'],
+    queryFn: api.liveReadiness,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: false,
+  });
   const [draft, setDraft] = useState<BotConfig | null>(null);
   const [watchlistInput, setWatchlistInput] = useState('');
   const [secrets, setSecrets] = useState<SecretsDraft>(EMPTY_SECRETS);
@@ -1082,6 +1089,7 @@ export function SettingsPage() {
             description="Duas travas independentes protegem o dinheiro real."
             icon={<LockKeyhole className="h-4 w-4" />}
           >
+            <LiveReadiness data={readiness.data} loading={readiness.isLoading} />
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="border-line bg-panel-2/50 rounded-xl border p-3">
                 <div className="flex items-center justify-between gap-2">

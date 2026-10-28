@@ -20,6 +20,7 @@ import type {
   LogsResponse,
   MetricsResponse,
   NotificationTestResult,
+  LiveReadiness,
   SettingsPayload,
   TestConnectionResult,
   TradeDetailResponse,
@@ -88,6 +89,7 @@ export const api = {
     request<AnalyticsResponse>(`/api/analytics?days=${days}${mode ? `&mode=${mode}` : ''}`),
   equity: (hours = 24) => request<{ items: EquityPoint[] }>(`/api/equity?hours=${hours}`),
   settings: () => request<SettingsResponse>('/api/settings'),
+  liveReadiness: () => request<LiveReadiness>('/api/settings/live-readiness'),
   updateSettings: (payload: SettingsPayload) =>
     request<SettingsResponse>('/api/settings', {
       method: 'PUT',

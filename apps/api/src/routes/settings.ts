@@ -34,6 +34,8 @@ const testConnectionSchema = z.object({
 export function registerSettingsRoutes(app: FastifyInstance, deps: SettingsRoutesDeps): void {
   app.get('/api/settings', async () => deps.settings.public());
 
+  app.get('/api/settings/live-readiness', async () => deps.settings.liveReadiness());
+
   app.put('/api/settings', async (request, reply) => {
     const input = parseInput(settingsUpdateSchema, request.body);
     const status = deps.engine.getStatus().status;

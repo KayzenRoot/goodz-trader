@@ -91,6 +91,39 @@ describe('API', () => {
     expect(response.json()).toEqual({ ok: false, channels: [] });
   });
 
+  it('reports live readiness blockers without placing an order', async () => {
+    const blocked = await harness.app.inject({
+      method: 'GET',
+      url: '/api/settings/live-readiness',
+    });
+    expect(blocked.statusCode).toBe(200);
+    expect(blocked.json()).toMatchObject({
+      ready: false,
+      checks: { ledgerFlat: true },
+    });
+    expect(blocked.json().blockers.join(' ')).toContain('Credenciais');
+    expect(blocked.json().blockers.join(' ')).toContain('LIVE_TRADING_ENABLED');
+
+    const readyHarness = await createHarness({ liveTradingEnabled: true });
+    try {
+      readyHarness.settings.update(
+        {
+          config: readyHarness.settings.config(),
+          secrets: { apiKey: 'test-api-key', apiSecret: 'test-api-secret' },
+        },
+        { actor: 'test', ip: null },
+      );
+      const ready = await readyHarness.app.inject({
+        method: 'GET',
+        url: '/api/settings/live-readiness',
+      });
+      expect(ready.statusCode).toBe(200);
+      expect(ready.json()).toMatchObject({ ready: true, blockers: [] });
+    } finally {
+      await readyHarness.close();
+    }
+  });
+
   it('validates and persists settings', async () => {
     const config = testConfig({ daily: { profitTargetUsd: 80, lossLimitUsd: 40 } });
     const response = await harness.app.inject({
