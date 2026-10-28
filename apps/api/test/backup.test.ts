@@ -1,0 +1,111 @@
+import type { Trade } from '@goodz/core';
+import Database from 'better-sqlite3';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { backupDatabase, restoreDatabase } from '../scripts/backup-lib.mjs';
+import { closeDatabase, openDatabase } from '../src/db/database';
+import { Repository } from '../src/db/repo';
+
+const now = Date.now();
+
+function seedTrade(): Trade {
+  return {
+    id: 'trd_backup',
+    mode: 'paper',
+    symbol: 'BTC_USDT',
+    side: 'long',
+    status: 'closed',
+    qty: 10,
+    contractSize: 0.0001,
+    entryPrice: 100_000,
+    exitPrice: 100_050,
+    notionalUsd: 100,
+    marginUsd: 10,
+    leverage: 10,
+    fees: 0.08,
+    grossPnl: 0.5,
+    netPnl: 0.42,
+    rMultiple: 1.2,
+    riskUsd: 0.35,
+    openReason: 'backup test',
+    closeReason: 'take_profit',
+    openedAt: now - 30_000,
+    closedAt: now,
+    createdAt: now - 30_000,
+    updatedAt: now,
+    isDemo: false,
+    meta: {},
+  };
+}
+
+let dirs: string[] = [];
+
+afterEach(() => {
+  for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
+  dirs = [];
+});
+
+describe('backup and restore', () => {
+  it('creates a verified WAL-safe backup and restores it with counts intact', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'goodz-backup-'));
+    dirs.push(dir);
+    const source = join(dir, 'goodz.db');
+    const backupDir = join(dir, 'backups');
+
+    const db = openDatabase(source);
+    const repo = new Repository(db);
+    repo.insertTrade(seedTrade());
+    repo.insertEquity({ ts: now, equity: 1_000, balance: 1_000, unrealized: 0, dayPnl: 0 });
+    closeDatabase(db);
+
+    const backup = await backupDatabase({ sourcePath: source, backupDir, keep: 2 });
+    expect(backup.integrity).toBe('ok');
+    expect(backup).toMatchObject({ trades: 1, orders: 0, equity: 1 });
+    expect(backup.bytes).toBeGreaterThan(0);
+
+    const restored = join(dir, 'restored.db');
+    const result = restoreDatabase({ backupPath: backup.path, targetPath: restored });
+    expect(result).toMatchObject({ trades: 1, orders: 0, equity: 1 });
+
+    const restoredDb = new Database(restored, { readonly: true });
+    expect(
+      restoredDb.prepare('SELECT net_pnl FROM trades WHERE id = ?').get('trd_backup'),
+    ).toMatchObject({ net_pnl: 0.42 });
+    restoredDb.close();
+  });
+
+  it('prunes old backups by timestamp', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'goodz-prune-'));
+    dirs.push(dir);
+    const source = join(dir, 'goodz.db');
+    const db = openDatabase(source);
+    closeDatabase(db);
+
+    const backupDir = join(dir, 'backups');
+    for (const date of [
+      new Date('2026-01-01T00:00:00Z'),
+      new Date('2026-01-02T00:00:00Z'),
+      new Date('2026-01-03T00:00:00Z'),
+    ]) {
+      await backupDatabase({ sourcePath: source, backupDir, keep: 2, now: date });
+    }
+
+    const files = readdirSync(backupDir).filter((name) => name.endsWith('.db'));
+    expect(files).toHaveLength(2);
+    expect(files).toEqual([
+      'goodz-2026-01-02T00-00-00-000Z.db',
+      'goodz-2026-01-03T00-00-00-000Z.db',
+    ]);
+  });
+
+  it('refuses an invalid source instead of producing a broken backup', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'goodz-invalid-'));
+    dirs.push(dir);
+    await expect(
+      backupDatabase({ sourcePath: join(dir, 'missing.db'), backupDir: join(dir, 'backups') }),
+    ).rejects.toThrow('Banco não encontrado');
+  });
+});

@@ -12,6 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "backup": "node scripts/backup.mjs",
+    "restore": "node scripts/restore.mjs",
     "db:reset": "tsx src/scripts/reset-db.ts"
   },
   "dependencies": {

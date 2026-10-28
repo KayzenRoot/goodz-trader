@@ -134,6 +134,10 @@ signal -> evaluateEntry -> Trade(pending) + Order(pending) -> broker.placeOrder
 SQLite is configured with WAL, `busy_timeout=5000`, `synchronous=NORMAL`, foreign keys.
 All queries use prepared statements. The DB is the ledger; WS is a projection.
 
+Retention prunes only high-volume observability tables (`logs`, `equity_snapshots`, old
+`audit_log` rows); trades and orders are never deleted. Backups use SQLite's online backup API
+and are verified with `integrity_check` plus row counts before being accepted.
+
 ## Event flow
 
 `MarketDataService` publishes `market` (source, snapshot, book, tape). The engine consumes

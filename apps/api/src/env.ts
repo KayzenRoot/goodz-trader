@@ -23,6 +23,10 @@ const envSchema = z.object({
   SEED_DEMO: envBooleanSchema.optional(),
   COOKIE_SECURE: envBooleanSchema.default(false),
   TRUST_PROXY: envBooleanSchema.default(false),
+  MAINTENANCE_ENABLED: envBooleanSchema.default(true),
+  RETENTION_LOGS_DAYS: z.coerce.number().int().min(1).max(3_650).default(14),
+  RETENTION_EQUITY_DAYS: z.coerce.number().int().min(1).max(3_650).default(90),
+  RETENTION_AUDIT_DAYS: z.coerce.number().int().min(1).max(3_650).default(365),
 });
 
 export interface Env {
@@ -43,6 +47,10 @@ export interface Env {
   SEED_DEMO: boolean;
   COOKIE_SECURE: boolean;
   TRUST_PROXY: boolean;
+  MAINTENANCE_ENABLED: boolean;
+  RETENTION_LOGS_DAYS: number;
+  RETENTION_EQUITY_DAYS: number;
+  RETENTION_AUDIT_DAYS: number;
   authRequired: boolean;
 }
 

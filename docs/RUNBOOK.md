@@ -26,8 +26,59 @@ pnpm dev
    - `COOKIE_SECURE=true` behind HTTPS
 2. `docker compose up -d --build`
 3. Check `docker compose ps` and `curl http://127.0.0.1:3001/api/health`.
-4. Put it behind a reverse proxy with TLS, auth (if desired) and firewall allowlist.
+4. Put it behind a reverse proxy with TLS. Publish only 443; keep the container port bound to
+   `127.0.0.1`. Set `AUTH_PASSWORD`, `APP_ORIGIN=https://your-host` and
+   `COOKIE_SECURE=true`. Firewall should allow only the proxy and your admin IP.
 5. Back up the volume before enabling live.
+
+## Backup, restore and retention
+
+The backup uses SQLite's online backup API (WAL-safe), then runs `integrity_check` and verifies
+trade/order/equity counts. Run it while the bot is running; it does not block trading.
+
+```bash
+# host / development
+pnpm backup                       # ./backups by default
+BACKUP_KEEP=14 pnpm backup
+
+# container
+docker compose exec goodz node apps/api/scripts/backup.mjs /backups
+```
+
+Restore **only with the API stopped**:
+
+```bash
+docker compose stop goodz
+docker compose run --rm --entrypoint node goodz \
+  apps/api/scripts/restore.mjs /backups/goodz-2026-01-01T00-00-00-000Z.db /data/goodz.db
+docker compose up -d
+```
+
+The restore verifies the backup before replacing the target, removes stale `-wal`/`-shm`
+files and reports the restored row counts. Compare those counts and the dashboard PnL with the
+pre-restore values.
+
+Retention (daily, after startup):
+
+- `RETENTION_LOGS_DAYS` (default 14)
+- `RETENTION_EQUITY_DAYS` (default 90)
+- `RETENTION_AUDIT_DAYS` (default 365)
+- Trades and orders are **never** pruned: they are the ledger.
+- Set `MAINTENANCE_ENABLED=false` only if an external job owns retention.
+
+## Upgrade and rollback
+
+```bash
+git fetch --tags
+git checkout vX.Y.Z
+docker compose build --pull
+docker compose up -d
+```
+
+Before upgrading: run a backup and confirm `/api/health`. If the new version fails, check out
+the previous tag, rebuild and restore the pre-upgrade backup only if the schema migration is
+incompatible. Never restore an old backup over a database that has newer live trades without
+exporting those trades first.
 
 ## Startup checklist
 
@@ -169,7 +220,7 @@ has uncheckpointed pages. Test restores quarterly.
 
 ## Known operational gaps
 
-- No automated off-host backups.
+- Automated on-host backups exist, but shipping them off-host is left to the operator/cron.
 - No Prometheus endpoint yet (tracked issue).
 - No automatic live-position reconciliation after a **process crash** (manual review required).
 - No alert when the process dies (use Docker restart + external monitoring).

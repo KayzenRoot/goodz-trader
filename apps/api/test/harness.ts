@@ -44,6 +44,10 @@ export async function createHarness(options: { password?: string } = {}): Promis
     SEED_DEMO: false,
     COOKIE_SECURE: false,
     TRUST_PROXY: false,
+    MAINTENANCE_ENABLED: false,
+    RETENTION_LOGS_DAYS: 14,
+    RETENTION_EQUITY_DAYS: 90,
+    RETENTION_AUDIT_DAYS: 365,
     authRequired,
   };
 

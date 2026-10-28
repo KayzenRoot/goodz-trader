@@ -21,6 +21,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:reset": "pnpm --filter @goodz/api db:reset",
+    "backup": "node apps/api/scripts/backup.mjs",
+    "restore": "node apps/api/scripts/restore.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

@@ -553,8 +553,16 @@ export class Repository {
       : null;
   }
 
-  deleteEquityBefore(ts: number): void {
-    this.db.prepare('DELETE FROM equity_snapshots WHERE ts < ?').run(ts);
+  deleteEquityBefore(ts: number): number {
+    return this.db.prepare('DELETE FROM equity_snapshots WHERE ts < ?').run(ts).changes;
+  }
+
+  deleteLogsBefore(ts: number): number {
+    return this.db.prepare('DELETE FROM logs WHERE ts < ?').run(ts).changes;
+  }
+
+  deleteAuditBefore(ts: number): number {
+    return this.db.prepare('DELETE FROM audit_log WHERE ts < ?').run(ts).changes;
   }
 
   insertLog(
