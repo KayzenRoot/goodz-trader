@@ -199,3 +199,14 @@
   color: #eef1f6 !important;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4) !important;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

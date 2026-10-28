@@ -16,8 +16,14 @@ export function RDistributionChart({
   data: Array<{ bucket: string; count: number }>;
   height?: number;
 }) {
+  const total = data.reduce((sum, item) => sum + item.count, 0);
   return (
-    <div style={{ height }} className="w-full">
+    <div
+      style={{ height }}
+      className="w-full"
+      role="img"
+      aria-label={`Distribuição de R: ${total} trades em ${data.length} faixas.`}
+    >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 6, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 6" vertical={false} />

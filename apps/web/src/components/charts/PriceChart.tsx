@@ -17,16 +17,28 @@ import { useEffect, useRef } from 'react';
 
 import { cn } from '@/lib/utils';
 
+export interface PriceChartLine {
+  price: number;
+  color: string;
+  title: string;
+}
+
+const EMPTY_LINES: PriceChartLine[] = [];
+
 export function PriceChart({
   candles,
   position,
   className,
   height = 380,
+  extraLines = EMPTY_LINES,
+  ariaLabel = 'Gráfico de candles do contrato',
 }: {
   candles: Candle[];
   position: PositionView | null;
   className?: string;
   height?: number;
+  extraLines?: PriceChartLine[];
+  ariaLabel?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -160,20 +172,22 @@ export function PriceChart({
       }
     }
     linesRef.current = [];
-    if (!position) return;
 
-    const levels: Array<{ price: number; color: string; title: string }> = [
-      { price: position.entryPrice, color: '#8b91a3', title: 'entrada' },
-      ...(position.takeProfitPrice !== null
-        ? [{ price: position.takeProfitPrice, color: '#2ee6a8', title: 'TP' }]
-        : []),
-      ...(position.stopPrice !== null
-        ? [{ price: position.stopPrice, color: '#ff5c7a', title: 'SL' }]
-        : []),
-    ];
-    if (position.trailingStopPrice) {
-      levels.push({ price: position.trailingStopPrice, color: '#ffb020', title: 'trail' });
+    const levels: Array<{ price: number; color: string; title: string }> = [];
+    if (position) {
+      levels.push({ price: position.entryPrice, color: '#8b91a3', title: 'entrada' });
+      if (position.takeProfitPrice !== null) {
+        levels.push({ price: position.takeProfitPrice, color: '#2ee6a8', title: 'TP' });
+      }
+      if (position.stopPrice !== null) {
+        levels.push({ price: position.stopPrice, color: '#ff5c7a', title: 'SL' });
+      }
+      if (position.trailingStopPrice) {
+        levels.push({ price: position.trailingStopPrice, color: '#ffb020', title: 'trail' });
+      }
     }
+    levels.push(...extraLines);
+    if (levels.length === 0) return;
 
     linesRef.current = levels.map((level) =>
       series.createPriceLine({
@@ -185,7 +199,7 @@ export function PriceChart({
         title: level.title,
       }),
     );
-  }, [position]);
+  }, [position, extraLines]);
 
   return (
     <div
@@ -193,7 +207,7 @@ export function PriceChart({
       className={cn('w-full overflow-hidden', className)}
       style={{ height }}
       role="img"
-      aria-label="Gráfico de candles do contrato"
+      aria-label={ariaLabel}
     />
   );
 }

@@ -82,7 +82,10 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     crossOriginEmbedderPolicy: false,
   });
   await app.register(rateLimit, {
-    max: 300,
+    // A single dashboard polls status/market/candles/logs and opens a WS; a
+    // busy operator can have more than one tab. Endpoint-specific limits still
+    // protect sensitive actions (settings tests, login, etc.).
+    max: 1_200,
     timeWindow: '1 minute',
     allowList: (request) => request.url.startsWith('/api/health'),
   });

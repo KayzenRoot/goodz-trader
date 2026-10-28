@@ -16,7 +16,7 @@ import {
   Target,
   Zap,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -538,6 +538,7 @@ export function SettingsPage() {
                     value={draft.leverage}
                     onChange={(event) => update('leverage', Number(event.target.value))}
                     className="w-20 text-right"
+                    aria-label="Alavancagem (x)"
                   />
                 </div>
               </Field>
@@ -1246,9 +1247,11 @@ function NumberField({
   error?: string;
   testId?: string;
 }) {
+  const id = useId();
   return (
-    <Field label={label} error={error}>
+    <Field label={label} htmlFor={id} error={error}>
       <Input
+        id={id}
         type="number"
         step={step}
         value={Number.isFinite(value) ? value : ''}
