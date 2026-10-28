@@ -49,6 +49,9 @@ Demo data is synthetic and clearly labeled. See [docs/screenshots](docs/screensh
   analytics, settings and logs/audit.
 - Exposes protected Prometheus metrics, separate liveness/readiness checks and alert rules
   for down/DB/halt/stale-feed/API/order-rate conditions.
+- Replays recorded order-flow snapshots through the same strategy/risk/exit logic, with fees,
+  slippage, funding, liquidation, walk-forward and a versioned report
+  ([docs/BACKTEST.md](docs/BACKTEST.md)).
 - Seeds deterministic **demo data** so the dashboard is useful offline before any key is
   configured. Demo rows are visibly marked.
 
@@ -160,6 +163,13 @@ pnpm test
 pnpm test:coverage
 pnpm build
 pnpm e2e
+```
+
+Research replay:
+
+```bash
+pnpm backtest -- --synthetic --rows 3000 --seed 42 --out reports
+pnpm backtest -- --dataset data/btc.jsonl --walk-forward --out reports
 ```
 
 CI runs formatting, lint, typecheck, unit/integration coverage, build and Playwright E2E.

@@ -29,6 +29,7 @@ import { MexcApiError, type MexcFuturesClient } from '@goodz/mexc';
 
 import { createBroker, type Broker, type BrokerReconciliation } from '../brokers';
 import type { BotStateRowInternal, Repository } from '../db/repo';
+import { evaluateExit } from './exits';
 import { evaluateReconciliation } from './reconcile';
 import { evaluateRequote, isPartialFill, makerLimitPrice, mergeFill, remainingQty } from './maker';
 import { HttpError } from '../lib/http-error';
@@ -608,40 +609,21 @@ export class TradingEngine {
   private exitReason(mark: number, now: number): string | null {
     const position = this.position;
     if (!position) return null;
-    if (now - position.openedAt < this.config.strategy.minHoldMs) return null;
-
-    const direction = position.side === 'long' ? 1 : -1;
-    const profitBps = ((mark - position.entryPrice) / position.entryPrice) * 10_000 * direction;
-
-    if (profitBps >= this.config.strategy.trailingStartBps) {
-      const candidate =
-        position.side === 'long'
-          ? mark * (1 - this.config.strategy.trailingDistanceBps / 10_000)
-          : mark * (1 + this.config.strategy.trailingDistanceBps / 10_000);
-      position.trailingStopPrice =
-        position.trailingStopPrice === null
-          ? candidate
-          : position.side === 'long'
-            ? Math.max(position.trailingStopPrice, candidate)
-            : Math.min(position.trailingStopPrice, candidate);
-    }
-
-    if (position.side === 'long') {
-      if (mark <= position.stopPrice) return 'stop_loss';
-      if (position.trailingStopPrice !== null && mark <= position.trailingStopPrice) {
-        return 'trailing_stop';
-      }
-      if (mark >= position.takeProfitPrice) return 'take_profit';
-    } else {
-      if (mark >= position.stopPrice) return 'stop_loss';
-      if (position.trailingStopPrice !== null && mark >= position.trailingStopPrice) {
-        return 'trailing_stop';
-      }
-      if (mark <= position.takeProfitPrice) return 'take_profit';
-    }
-
-    if (now - position.openedAt >= this.config.strategy.timeStopSec * 1_000) return 'time_stop';
-    return null;
+    const decision = evaluateExit(
+      {
+        side: position.side,
+        entryPrice: position.entryPrice,
+        stopPrice: position.stopPrice,
+        takeProfitPrice: position.takeProfitPrice,
+        trailingStopPrice: position.trailingStopPrice,
+        openedAt: position.openedAt,
+      },
+      mark,
+      now,
+      this.config.strategy,
+    );
+    position.trailingStopPrice = decision.trailingStopPrice;
+    return decision.reason;
   }
 
   private async placeEntry(
