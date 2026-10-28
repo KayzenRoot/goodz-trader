@@ -8,6 +8,7 @@ import { SessionService } from './services/auth';
 import { seedDemoData } from './services/demo';
 import { EventBus } from './services/events';
 import { MarketDataService } from './services/market-data';
+import { MaintenanceService } from './services/maintenance';
 import { NotificationService } from './services/notifier';
 import { SettingsService } from './services/settings';
 
@@ -101,6 +102,13 @@ const app = await buildApp({
   logger,
 });
 
+const maintenance = new MaintenanceService(repo, logger.child('maintenance'), {
+  logsDays: env.RETENTION_LOGS_DAYS,
+  equityDays: env.RETENTION_EQUITY_DAYS,
+  auditDays: env.RETENTION_AUDIT_DAYS,
+});
+if (env.MAINTENANCE_ENABLED) maintenance.start();
+
 await app.listen({ host: env.HOST, port: env.PORT });
 logger.info('Servidor iniciado', {
   url: `http://${env.HOST}:${env.PORT}`,
@@ -130,6 +138,7 @@ async function shutdown(signal: string): Promise<void> {
     });
   }
   market.stop();
+  maintenance.stop();
   await app.close();
   closeDatabase(db);
   logger.info('Servidor encerrado');

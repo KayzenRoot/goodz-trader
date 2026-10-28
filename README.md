@@ -199,8 +199,9 @@ cp .env.example .env   # set APP_SECRET, AUTH_PASSWORD, LIVE_TRADING_ENABLED=fal
 docker compose up -d --build
 ```
 
-The API serves the built SPA on port 3001. SQLite lives in the `goodz-data` volume. Read
-[docs/RUNBOOK.md](docs/RUNBOOK.md) before exposing it to the internet.
+The API serves the built SPA on port 3001. SQLite lives in the `goodz-data` volume. Back up
+with `docker compose exec -e BACKUP_DIR=/backups goodz node apps/api/scripts/backup.mjs`;
+restore with the service stopped (see [docs/RUNBOOK.md](docs/RUNBOOK.md)).
 
 ## License
 

@@ -1,4 +1,10 @@
-import { botConfigSchema, type BotConfig, type ContractSpec, type EngineStatus } from '@goodz/core';
+import {
+  botConfigSchema,
+  type BotConfig,
+  type ContractSpec,
+  type EngineStatus,
+  type Trade,
+} from '@goodz/core';
 import type { MexcFuturesClient } from '@goodz/mexc';
 
 import type { AppLogger } from '../src/lib/logger';
@@ -58,6 +64,38 @@ export function fakeClient(): MexcFuturesClient {
     hasCredentials: false,
     clockOffsetMs: 0,
   } as unknown as MexcFuturesClient;
+}
+
+export function sampleClosedTrade(overrides: Partial<Trade> = {}): Trade {
+  const now = Date.now();
+  return {
+    id: 'trd_test_1',
+    mode: 'paper',
+    symbol: 'BTC_USDT',
+    side: 'long',
+    status: 'closed',
+    qty: 10,
+    contractSize: 0.0001,
+    entryPrice: 100_000,
+    exitPrice: 100_050,
+    notionalUsd: 100,
+    marginUsd: 10,
+    leverage: 10,
+    fees: 0.08,
+    grossPnl: 0.5,
+    netPnl: 0.42,
+    rMultiple: 1.2,
+    riskUsd: 0.35,
+    openReason: 'unit test',
+    closeReason: 'take_profit',
+    openedAt: now - 30_000,
+    closedAt: now,
+    createdAt: now - 30_000,
+    updatedAt: now,
+    isDemo: false,
+    meta: {},
+    ...overrides,
+  };
 }
 
 export function idleStatus(overrides: Partial<EngineStatus> = {}): EngineStatus {
