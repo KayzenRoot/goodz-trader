@@ -168,6 +168,28 @@ export function SettingsPage() {
     },
   });
 
+  const testNotifications = useMutation({
+    mutationFn: () => api.testNotifications(),
+    onSuccess: (result) => {
+      if (result.ok) {
+        toast.success('Notificações entregues', {
+          description: `${result.channels.length} canal(is) responderam OK.`,
+        });
+        return;
+      }
+      const summary = result.channels.length
+        ? result.channels
+            .map((channel) => `${channel.channel}: ${channel.status ?? channel.error ?? 'falha'}`)
+            .join(' · ')
+        : 'Nenhum canal configurado.';
+      toast.error('Teste de notificações falhou', { description: summary });
+    },
+    onError: (error) =>
+      toast.error('Não foi possível testar as notificações', {
+        description: error instanceof Error ? error.message : 'Erro inesperado.',
+      }),
+  });
+
   const killSwitch = useMutation({
     mutationFn: (enabled: boolean) => api.setKillSwitch(enabled),
     onSuccess: (data) => {
@@ -1036,6 +1058,20 @@ export function SettingsPage() {
                   setSecrets((current) => ({ ...current, clearTelegram: checked }))
                 }
               />
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                loading={testNotifications.isPending}
+                onClick={() => testNotifications.mutate()}
+              >
+                Testar notificações
+              </Button>
+              <span className="text-dim text-[10px]">
+                Usa a configuração salva; envia uma mensagem de teste a cada canal ativo.
+              </span>
             </div>
           </Section>
 

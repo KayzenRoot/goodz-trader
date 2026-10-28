@@ -71,6 +71,15 @@ describe('API', () => {
     expect(body.confirmationPhrase).toBe('CONFIRMO TRADING REAL');
   });
 
+  it('reports no configured notification channel without leaking secrets', async () => {
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/api/settings/test-notifications',
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ ok: false, channels: [] });
+  });
+
   it('validates and persists settings', async () => {
     const config = testConfig({ daily: { profitTargetUsd: 80, lossLimitUsd: 40 } });
     const response = await harness.app.inject({

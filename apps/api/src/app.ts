@@ -26,6 +26,7 @@ import type { SessionService } from './services/auth';
 import { SESSION_COOKIE } from './services/auth';
 import type { EventBus, OutboundEvent } from './services/events';
 import type { MarketDataService } from './services/market-data';
+import type { NotificationService } from './services/notifier';
 import type { SettingsService } from './services/settings';
 import { registerAuthRoutes } from './routes/auth';
 import { registerBotRoutes } from './routes/bot';
@@ -42,6 +43,7 @@ export interface AppDependencies {
   engine: TradingEngine;
   market: MarketDataService;
   events: EventBus;
+  notifier: NotificationService;
   logger: AppLogger;
 }
 
@@ -127,6 +129,7 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     engine: deps.engine,
     market: deps.market,
     events: deps.events,
+    notifier: deps.notifier,
   });
   registerBotRoutes(app, { engine: deps.engine, settings: deps.settings });
   registerTradeRoutes(app, { repo: deps.repo });

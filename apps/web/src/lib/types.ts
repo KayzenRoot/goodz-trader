@@ -79,6 +79,16 @@ export interface TestConnectionResult {
   openOrders: number;
 }
 
+export interface NotificationTestResult {
+  ok: boolean;
+  channels: Array<{
+    channel: 'telegram' | 'webhook';
+    ok: boolean;
+    status: number | null;
+    error?: string;
+  }>;
+}
+
 export interface SettingsPayload {
   config: BotConfig;
   secrets: {

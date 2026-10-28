@@ -11,6 +11,7 @@ import type { Repository } from '../db/repo';
 import type { SessionService } from '../services/auth';
 import type { EventBus } from '../services/events';
 import type { MarketDataService } from '../services/market-data';
+import type { NotificationService } from '../services/notifier';
 import type { SettingsService } from '../services/settings';
 import type { TradingEngine } from '../bot/engine';
 import { parseInput } from './helpers';
@@ -22,6 +23,7 @@ interface SettingsRoutesDeps {
   engine: TradingEngine;
   market: MarketDataService;
   events: EventBus;
+  notifier: NotificationService;
 }
 
 const testConnectionSchema = z.object({
@@ -73,6 +75,14 @@ export function registerSettingsRoutes(app: FastifyInstance, deps: SettingsRoute
       const result = await deps.settings.testConnection(input);
       return { ok: true, ...result };
     },
+  );
+
+  app.post(
+    '/api/settings/test-notifications',
+    {
+      config: { rateLimit: { max: 3, timeWindow: '1 minute' } },
+    },
+    async () => deps.notifier.testConnection(),
   );
 
   app.post('/api/settings/kill-switch', async (request) => {

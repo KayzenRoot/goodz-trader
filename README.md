@@ -100,7 +100,7 @@ Open **Configurações** in the dashboard. Everything the engine uses is there:
 - **Guard diário** — daily profit target, daily loss limit, UTC reset hour, stop on target,
   close on stop.
 - **Execução & taxas** — maker/taker fees, slippage, kill switch.
-- **Notificações** — Telegram and generic webhook.
+- **Notificações** - Telegram and generic webhook with dedupe, retry/backoff and a connection test.
 - **Live & segurança** — server live flag, confirmation phrase, auth status, risk warnings.
 
 Secrets are encrypted with AES-256-GCM using `APP_SECRET`; the API never returns the plain

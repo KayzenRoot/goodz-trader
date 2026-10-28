@@ -507,6 +507,7 @@ export class TradingEngine {
         this.log('warn', 'Feed de mercado atrasado; entradas bloqueadas', {
           lastTickAt: view.lastTickAt,
         });
+        this.options.notifier.notifyFeedStale(view.source, view.lastTickAt);
       }
       return;
     }
@@ -1421,6 +1422,7 @@ export class TradingEngine {
         error: this.lastError,
         tradeId: position.tradeId,
       });
+      this.options.notifier.notifyCloseFailure(position.tradeId, this.lastError);
       this.emitStatus();
       return false;
     }
@@ -1505,7 +1507,19 @@ export class TradingEngine {
     this.stoppedAt = this.now();
     this.clearTimers();
     this.log('warn', 'Bot pausado pelo risk guard', { reason });
-    this.options.notifier.notifyHalt(reason, this.getStatus().lastError ?? '');
+    if (reason === 'daily_stop' || reason === 'daily_target') {
+      this.options.notifier.notifyDaily(
+        reason,
+        this.realizedDay + (this.position ? this.unrealizedNet() : 0),
+        `daily:${reason}:${this.day}`,
+      );
+    } else {
+      this.options.notifier.notifyHalt(
+        reason,
+        this.getStatus().lastError ?? '',
+        `halt:${reason}:${this.startedAt ?? this.stoppedAt ?? 0}`,
+      );
+    }
     if (this.pending) await this.cancelPending(reason);
     if (closePosition && this.position) await this.closeCurrent(reason);
     try {
