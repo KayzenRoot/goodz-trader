@@ -23,13 +23,15 @@ import { SegmentedControl } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/ui/stat';
 import { TBody, TD, TH, THead, TR, Table } from '@/components/ui/table';
-import { useAnalytics } from '@/hooks/useTrader';
+import { useAnalytics, useMetrics } from '@/hooks/useTrader';
 import { dayShort, fmtDuration, fmtMoney, fmtNumber, fmtPct, fmtSignedMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 export function AnalyticsPage() {
   const [range, setRange] = useState<7 | 30 | 90>(30);
   const analytics = useAnalytics(range);
+  const paperMetrics = useMetrics(range, 'paper');
+  const liveMetrics = useMetrics(range, 'live');
   const data = analytics.data;
   const summary = data?.summary;
 
@@ -130,8 +132,87 @@ export function AnalyticsPage() {
             />
           </div>
 
+          <Card data-testid="paper-live-comparison">
+            <CardHeader
+              title="Paper vs live"
+              description="Mesma janela, líquido de taxas. Compare o simulador com o que o mercado entregou."
+              eyebrow="Validação"
+              icon={<Gauge className="h-4 w-4" />}
+              action={
+                <Badge variant={liveMetrics.data?.summary.trades ? 'profit' : 'neutral'}>
+                  {liveMetrics.data?.summary.trades
+                    ? `${liveMetrics.data.summary.trades} live`
+                    : 'sem trades live'}
+                </Badge>
+              }
+            />
+            <CardBody className="pt-3">
+              <Table>
+                <THead>
+                  <TR>
+                    <TH>Métrica</TH>
+                    <TH className="text-right">Paper</TH>
+                    <TH className="text-right">Live</TH>
+                  </TR>
+                </THead>
+                <TBody>
+                  <TR>
+                    <TD>PnL líquido</TD>
+                    <TD className="num text-right">
+                      {fmtSignedMoney(paperMetrics.data?.summary.totalPnl ?? 0)}
+                    </TD>
+                    <TD className="num text-right">
+                      {fmtSignedMoney(liveMetrics.data?.summary.totalPnl ?? 0)}
+                    </TD>
+                  </TR>
+                  <TR>
+                    <TD>Trades</TD>
+                    <TD className="num text-right">
+                      {fmtNumber(paperMetrics.data?.summary.trades ?? 0, 0)}
+                    </TD>
+                    <TD className="num text-right">
+                      {fmtNumber(liveMetrics.data?.summary.trades ?? 0, 0)}
+                    </TD>
+                  </TR>
+                  <TR>
+                    <TD>Win rate</TD>
+                    <TD className="num text-right">
+                      {fmtPct(paperMetrics.data?.summary.winRate ?? 0)}
+                    </TD>
+                    <TD className="num text-right">
+                      {fmtPct(liveMetrics.data?.summary.winRate ?? 0)}
+                    </TD>
+                  </TR>
+                  <TR>
+                    <TD>Profit factor</TD>
+                    <TD className="num text-right">
+                      {fmtNumber(paperMetrics.data?.summary.profitFactor ?? 0)}
+                    </TD>
+                    <TD className="num text-right">
+                      {fmtNumber(liveMetrics.data?.summary.profitFactor ?? 0)}
+                    </TD>
+                  </TR>
+                  <TR>
+                    <TD>Taxas</TD>
+                    <TD className="num text-right">
+                      {fmtMoney(paperMetrics.data?.summary.fees ?? 0)}
+                    </TD>
+                    <TD className="num text-right">
+                      {fmtMoney(liveMetrics.data?.summary.fees ?? 0)}
+                    </TD>
+                  </TR>
+                </TBody>
+              </Table>
+              {!liveMetrics.data?.summary.trades ? (
+                <p className="text-dim mt-2 text-[10px]">
+                  Ainda não há trades live nesta janela; a coluna live não é evidência de edge.
+                </p>
+              ) : null}
+            </CardBody>
+          </Card>
+
           <div className="grid gap-5 xl:grid-cols-3">
-            <Card className="xl:col-span-2">
+            <Card className="min-w-0 xl:col-span-2">
               <CardHeader
                 title="Equity do período"
                 description="Realizado + não realizado nos snapshots do motor."
@@ -181,7 +262,7 @@ export function AnalyticsPage() {
           </div>
 
           <div className="grid gap-5 xl:grid-cols-3">
-            <Card className="xl:col-span-2">
+            <Card className="min-w-0 xl:col-span-2">
               <CardHeader
                 title="Dias"
                 description="Detalhe diário do período selecionado."

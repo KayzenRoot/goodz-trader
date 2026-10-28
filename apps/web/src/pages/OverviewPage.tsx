@@ -21,6 +21,7 @@ import { Link } from 'react-router-dom';
 
 import { EquityChart } from '@/components/charts/EquityChart';
 import { PnlBars } from '@/components/charts/PnlBars';
+import { AlertCenter } from '@/components/overview/AlertCenter';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
@@ -255,6 +256,8 @@ export function OverviewPage() {
         </div>
       </section>
 
+      <AlertCenter status={status} config={config} />
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <StatCard
           label="Win rate"
@@ -300,7 +303,7 @@ export function OverviewPage() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
+        <Card className="min-w-0 xl:col-span-2">
           <CardHeader
             title="Curva de equity"
             description="Snapshots do motor, incluindo PnL realizado e não realizado."
@@ -400,7 +403,7 @@ export function OverviewPage() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
+        <Card className="min-w-0 xl:col-span-2">
           <CardHeader
             title="Posição aberta"
             description="Execução atual do motor e níveis de saída."
@@ -550,7 +553,7 @@ export function OverviewPage() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
+        <Card className="min-w-0 xl:col-span-2">
           <CardHeader
             title="Trades recentes"
             description="Últimas execuções registradas no ledger."

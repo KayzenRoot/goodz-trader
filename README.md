@@ -45,8 +45,9 @@ Demo data is synthetic and clearly labeled. See [docs/screenshots](docs/screensh
   halt, kill switch and manual close.
 - Persists a full ledger in SQLite (trades, orders, fees, equity snapshots, daily stats,
   audit log) and streams live state over WebSocket.
-- Ships a complete dashboard: overview, terminal (chart/order book/tape), trades,
-  analytics, settings and logs/audit.
+- Ships a complete dashboard: overview with an alert center, terminal (chart/order book/tape),
+  trades with candle replay, analytics, settings and logs/audit. Mobile and keyboard checks are
+  covered in [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md).
 - Exposes protected Prometheus metrics, separate liveness/readiness checks and alert rules
   for down/DB/halt/stale-feed/API/order-rate conditions.
 - Replays recorded order-flow snapshots through the same strategy/risk/exit logic, with fees,

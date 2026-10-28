@@ -34,6 +34,7 @@ export function EquityChart({
 }) {
   const points = useMemo(() => sample(data), [data]);
   const first = points[0]?.equity ?? 0;
+  const last = points.at(-1)?.equity ?? first;
 
   if (points.length < 2) {
     return (
@@ -44,7 +45,12 @@ export function EquityChart({
   }
 
   return (
-    <div style={{ height }} className="w-full">
+    <div
+      style={{ height }}
+      className="w-full"
+      role="img"
+      aria-label={`Equity de ${fmtMoney(first)} para ${fmtMoney(last)} em ${points.length} pontos.`}
+    >
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={points} margin={{ top: 8, right: 6, left: 0, bottom: 0 }}>
           <defs>

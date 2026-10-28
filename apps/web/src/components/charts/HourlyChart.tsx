@@ -20,9 +20,15 @@ export function HourlyChart({
   height?: number;
 }) {
   const points = data.map((item) => ({ ...item, label: `${String(item.hour).padStart(2, '0')}h` }));
+  const total = points.reduce((sum, item) => sum + item.pnl, 0);
 
   return (
-    <div style={{ height }} className="w-full">
+    <div
+      style={{ height }}
+      className="w-full"
+      role="img"
+      aria-label={`PnL por hora: ${fmtMoney(total)} no total, ${points.length} faixas horárias.`}
+    >
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={points} margin={{ top: 8, right: 6, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 6" vertical={false} />

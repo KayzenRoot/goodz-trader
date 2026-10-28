@@ -28,9 +28,16 @@ export function PnlBars({
       })),
     [data],
   );
+  const total = points.reduce((sum, item) => sum + item.pnl, 0);
+  const trades = points.reduce((sum, item) => sum + item.trades, 0);
 
   return (
-    <div style={{ height }} className="w-full">
+    <div
+      style={{ height }}
+      className="w-full"
+      role="img"
+      aria-label={`PnL diário de ${fmtMoney(total)} em ${points.length} dias e ${trades} trades.`}
+    >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={points} margin={{ top: 8, right: 6, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 6" vertical={false} />

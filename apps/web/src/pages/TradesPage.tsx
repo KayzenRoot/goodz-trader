@@ -1,7 +1,8 @@
 import type { BotMode, TradeStatus } from '@goodz/core';
 import { Download, FileSearch, Filter, ListFilter, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
+import { PriceChart, type PriceChartLine } from '@/components/charts/PriceChart';
 import { DemoBadge, PnlText, SideBadge, TradeStatusBadge } from '@/components/trades/badges';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,7 @@ import { Select } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/ui/stat';
 import { TBody, TD, TH, THead, TR, Table } from '@/components/ui/table';
-import { useMetrics, useTrade, useTrades } from '@/hooks/useTrader';
+import { useCandles, useMetrics, useTrade, useTrades } from '@/hooks/useTrader';
 import { api } from '@/lib/api';
 import {
   fmtDateTime,
@@ -50,6 +51,36 @@ export function TradesPage() {
     symbol: symbol.trim() || undefined,
   });
   const detail = useTrade(selected);
+  const replayCandles = useCandles(detail.data?.trade.symbol ?? 'BTC_USDT', 'Min1');
+  const replay = useMemo(() => {
+    const trade = detail.data?.trade;
+    const candles = replayCandles.data?.candles ?? [];
+    if (!trade || candles.length === 0) return { candles: [], limited: false, source: null };
+    const entry = trade.openedAt ? Math.floor(trade.openedAt / 1_000) : null;
+    const exit = trade.closedAt ? Math.floor(trade.closedAt / 1_000) : null;
+    const points = [entry, exit].filter((value): value is number => value !== null);
+    const from = Math.min(...points) - 900;
+    const to = Math.max(...points) + 900;
+    const selectedCandles = candles.filter((candle) => candle.time >= from && candle.time <= to);
+    return selectedCandles.length >= 5
+      ? { candles: selectedCandles, limited: false, source: replayCandles.data?.source ?? null }
+      : { candles: candles.slice(-120), limited: true, source: replayCandles.data?.source ?? null };
+  }, [detail.data, replayCandles.data]);
+  const replayLines = useMemo<PriceChartLine[]>(() => {
+    const trade = detail.data?.trade;
+    if (!trade?.entryPrice) return [];
+    const lines: PriceChartLine[] = [
+      { price: trade.entryPrice, color: '#8b91a3', title: 'entrada' },
+    ];
+    if (trade.exitPrice) {
+      lines.push({
+        price: trade.exitPrice,
+        color: trade.netPnl >= 0 ? '#2ee6a8' : '#ff5c7a',
+        title: 'saída',
+      });
+    }
+    return lines;
+  }, [detail.data]);
   const summary = metrics.data?.summary;
   const totalPages = Math.max(1, Math.ceil((trades.data?.total ?? 0) / PAGE_SIZE));
 
@@ -333,6 +364,36 @@ export function TradesPage() {
                   }
                 />
                 <Detail label="Motivo" value={detail.data.trade.closeReason || '—'} />
+              </div>
+
+              <div>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="label">Replay do trade</p>
+                  <Badge variant="neutral">
+                    {replay.source === 'mexc' ? 'candles MEXC' : 'candles sintéticos'} · Min1
+                  </Badge>
+                </div>
+                {replayCandles.isLoading ? (
+                  <Skeleton className="h-[220px]" />
+                ) : replay.candles.length > 0 ? (
+                  <PriceChart
+                    candles={replay.candles}
+                    position={null}
+                    height={220}
+                    extraLines={replayLines}
+                    ariaLabel={`Replay de ${detail.data.trade.symbol}: entrada ${fmtPrice(
+                      detail.data.trade.entryPrice,
+                    )}, saída ${fmtPrice(detail.data.trade.exitPrice)}.`}
+                  />
+                ) : (
+                  <p className="text-dim text-[11px]">Candles indisponíveis para este trade.</p>
+                )}
+                {replay.limited ? (
+                  <p className="text-warn mt-1 text-[10px]">
+                    O histórico recente de candles não cobre a janela deste trade; exibindo os
+                    últimos candles disponíveis.
+                  </p>
+                ) : null}
               </div>
 
               <div>
