@@ -19,6 +19,7 @@ import type {
   ContractResponse,
   LogsResponse,
   MetricsResponse,
+  NotificationTestResult,
   SettingsPayload,
   TestConnectionResult,
   TradeDetailResponse,
@@ -94,6 +95,8 @@ export const api = {
     }),
   testConnection: (apiKey?: string, apiSecret?: string) =>
     request<TestConnectionResult>('/api/settings/test-connection', json({ apiKey, apiSecret })),
+  testNotifications: () =>
+    request<NotificationTestResult>('/api/settings/test-notifications', json({})),
   setKillSwitch: (enabled: boolean) =>
     request<SettingsResponse>('/api/settings/kill-switch', json({ enabled })),
   startBot: (confirmation?: string) =>

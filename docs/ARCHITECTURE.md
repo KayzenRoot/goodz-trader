@@ -154,17 +154,18 @@ on connect and a heartbeat every 20s. Market frames are dropped if the socket bu
 
 ## Failure modes
 
-| Failure                   | Behavior                                                                                         |
-| ------------------------- | ------------------------------------------------------------------------------------------------ |
-| Market feed stale >5s     | Entries blocked; status warning; exits still attempted? No — no fresh price, no synthetic fills. |
-| MEXC public WS drop       | Feed status offline; reconnect with backoff; REST fallback for dashboard queries.                |
-| MEXC private WS drop      | Order/position stream reconnects; REST polling keeps working; on re-login the broker reconciles. |
-| Reconciliation divergence | Orphan/duplicate position or order, side/qty mismatch -> halt and require manual review.         |
-| Order rejected            | Trade marked rejected; no position; error logged.                                                |
-| Close fails               | Position retained; error surfaced; kill switch remains available; manual close required.         |
-| Process crash             | Bot does not auto-resume; paper position can be adopted; live requires manual reconciliation.    |
-| SQLite locked             | 5s busy timeout; write failure logged; engine reports error.                                     |
-| Clock drift               | REST syncs server time; signature window 5s.                                                     |
+| Failure                   | Behavior                                                                                               |
+| ------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Market feed stale >5s     | Entries blocked; status warning; exits still attempted? No — no fresh price, no synthetic fills.       |
+| MEXC public WS drop       | Feed status offline; reconnect with backoff; REST fallback for dashboard queries.                      |
+| MEXC private WS drop      | Order/position stream reconnects; REST polling keeps working; on re-login the broker reconciles.       |
+| Reconciliation divergence | Orphan/duplicate position or order, side/qty mismatch -> halt and require manual review.               |
+| Order rejected            | Trade marked rejected; no position; error logged.                                                      |
+| Close fails               | Position retained; error surfaced and notified; kill switch remains available; manual close required.  |
+| Notification failure      | Bounded queue retries with backoff; trading is never blocked; final failure is logged without secrets. |
+| Process crash             | Bot does not auto-resume; paper position can be adopted; live requires manual reconciliation.          |
+| SQLite locked             | 5s busy timeout; write failure logged; engine reports error.                                           |
+| Clock drift               | REST syncs server time; signature window 5s.                                                           |
 
 ## Deliberate limitations (tracked as issues)
 

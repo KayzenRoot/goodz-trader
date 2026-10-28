@@ -97,6 +97,7 @@ const app = await buildApp({
   engine,
   market,
   events,
+  notifier,
   logger,
 });
 

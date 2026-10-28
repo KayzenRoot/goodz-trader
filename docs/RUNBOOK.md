@@ -155,6 +155,18 @@ has uncheckpointed pages. Test restores quarterly.
   before raising size. A low maker fill rate with high fallback cost means the edge may be
   eaten by fees.
 
+## Notifications
+
+- Configure Telegram (`chat id` + bot token) and/or a webhook in **Settings → Notificações**.
+- The delivery queue is in-memory, bounded and non-blocking. Each channel gets up to 3
+  attempts with exponential backoff; `429` honors `Retry-After`, other `4xx` are not retried.
+- Events are deduplicated for 5 minutes by trade/halt/day/feed key, so a flapping feed or a
+  repeated close failure does not spam the channel.
+- Use **Testar notificações** to send one message per configured channel. The result shows only
+  channel name/status; tokens, chat ids and webhook URLs are never returned or logged.
+- Alerts cover trade close, halt, close failure, stale feed and daily target/stop.
+- A notification outage never blocks trading. Check the dashboard/logs if alerts stop arriving.
+
 ## Known operational gaps
 
 - No automated off-host backups.

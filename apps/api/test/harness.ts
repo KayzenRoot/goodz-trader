@@ -103,6 +103,7 @@ export async function createHarness(options: { password?: string } = {}): Promis
     engine,
     market,
     events,
+    notifier,
     logger: testLogger,
   });
 
