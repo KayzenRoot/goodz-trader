@@ -20,4 +20,15 @@ describe('DbLogger', () => {
     const child = parent.child('child');
     expect(() => child.info('hello')).not.toThrow();
   });
+
+  it('never crashes when the persistence sink is closed', () => {
+    const logger = new DbLogger(
+      createLogger('test', 'silent'),
+      () => {
+        throw new Error('database connection is not open');
+      },
+      'unit',
+    );
+    expect(() => logger.error('during shutdown')).not.toThrow();
+  });
 });

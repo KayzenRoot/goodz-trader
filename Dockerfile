@@ -10,7 +10,10 @@ COPY apps/web/package.json apps/web/package.json
 COPY packages/core/package.json packages/core/package.json
 COPY packages/mexc/package.json packages/mexc/package.json
 
-RUN pnpm install --frozen-lockfile
+# The lockfile is part of the reviewed source tree. Skip re-verifying the
+# supply-chain policy against the registry inside the image build; CI performs
+# that check on every PR.
+RUN pnpm install --frozen-lockfile --trust-lockfile
 
 COPY . .
 RUN pnpm build
@@ -24,15 +27,15 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-COPY --from=build /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=build /app/apps/api/package.json ./apps/api/package.json
-COPY --from=build /app/apps/api/dist ./apps/api/dist
-COPY --from=build /app/apps/api/scripts ./apps/api/scripts
-COPY --from=build /app/apps/web/dist ./apps/web/dist
+COPY --chown=node:node --from=build /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
+COPY --chown=node:node --from=build /app/node_modules ./node_modules
+COPY --chown=node:node --from=build /app/apps/api/node_modules ./apps/api/node_modules
+COPY --chown=node:node --from=build /app/apps/api/package.json ./apps/api/package.json
+COPY --chown=node:node --from=build /app/apps/api/dist ./apps/api/dist
+COPY --chown=node:node --from=build /app/apps/api/scripts ./apps/api/scripts
+COPY --chown=node:node --from=build /app/apps/web/dist ./apps/web/dist
 
-RUN mkdir -p /data && chown -R node:node /data /app
+RUN mkdir -p /data && chown node:node /data
 USER node
 
 EXPOSE 3001

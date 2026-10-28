@@ -610,6 +610,7 @@ export class Repository {
     message: string,
     data: Record<string, unknown> | null,
   ): number {
+    if (!this.db.open) return 0;
     const result = this.db
       .prepare('INSERT INTO logs (ts, level, category, message, data) VALUES (?, ?, ?, ?, ?)')
       .run(now(), level, category, message, data ? JSON.stringify(data) : null);
