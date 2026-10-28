@@ -15,6 +15,7 @@
     "backup": "node scripts/backup.mjs",
     "restore": "node scripts/restore.mjs",
     "backtest": "tsx src/scripts/backtest.ts",
+    "ledger:reconcile": "tsx src/scripts/ledger-reconcile.ts",
     "db:reset": "tsx src/scripts/reset-db.ts"
   },
   "dependencies": {

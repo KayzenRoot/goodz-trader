@@ -1,14 +1,16 @@
-import type {
-  AuditEntry,
-  BotConfig,
-  BotStatus,
-  DailyStats,
-  EquityPoint,
-  HaltReason,
-  LogEntry,
-  OrderRecord,
-  Trade,
-  TradeStatus,
+import {
+  fromMicros,
+  toMicros,
+  type AuditEntry,
+  type BotConfig,
+  type BotStatus,
+  type DailyStats,
+  type EquityPoint,
+  type HaltReason,
+  type LogEntry,
+  type OrderRecord,
+  type Trade,
+  type TradeStatus,
 } from '@goodz/core';
 
 import type { Db } from './database';
@@ -261,10 +263,11 @@ export class Repository {
       .prepare(
         `INSERT INTO trades (
           id, mode, symbol, side, status, qty, contract_size, entry_price, exit_price,
-          notional_usd, margin_usd, leverage, fees, gross_pnl, net_pnl, r_multiple,
+          notional_usd, margin_usd, leverage, fees, fees_micros, gross_pnl,
+          gross_pnl_micros, net_pnl, net_pnl_micros, r_multiple,
           risk_usd, open_reason, close_reason, opened_at, closed_at, created_at,
           updated_at, is_demo, meta
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         trade.id,
@@ -280,8 +283,11 @@ export class Repository {
         trade.marginUsd,
         trade.leverage,
         trade.fees,
+        toMicros(trade.fees),
         trade.grossPnl,
+        toMicros(trade.grossPnl),
         trade.netPnl,
+        toMicros(trade.netPnl),
         trade.rMultiple,
         trade.riskUsd,
         trade.openReason,
@@ -301,7 +307,8 @@ export class Repository {
         `UPDATE trades SET
           mode = ?, symbol = ?, side = ?, status = ?, qty = ?, contract_size = ?,
           entry_price = ?, exit_price = ?, notional_usd = ?, margin_usd = ?, leverage = ?,
-          fees = ?, gross_pnl = ?, net_pnl = ?, r_multiple = ?, risk_usd = ?,
+          fees = ?, fees_micros = ?, gross_pnl = ?, gross_pnl_micros = ?, net_pnl = ?,
+          net_pnl_micros = ?, r_multiple = ?, risk_usd = ?,
           open_reason = ?, close_reason = ?, opened_at = ?, closed_at = ?,
           updated_at = ?, is_demo = ?, meta = ?
         WHERE id = ?`,
@@ -319,8 +326,11 @@ export class Repository {
         trade.marginUsd,
         trade.leverage,
         trade.fees,
+        toMicros(trade.fees),
         trade.grossPnl,
+        toMicros(trade.grossPnl),
         trade.netPnl,
+        toMicros(trade.netPnl),
         trade.rMultiple,
         trade.riskUsd,
         trade.openReason,
@@ -412,10 +422,30 @@ export class Repository {
   getRealizedPnl(mode: 'paper' | 'live'): number {
     const row = this.db
       .prepare(
-        `SELECT COALESCE(SUM(net_pnl), 0) AS total FROM trades WHERE status = 'closed' AND mode = ?`,
+        `SELECT COALESCE(SUM(net_pnl_micros), 0) AS total FROM trades WHERE status = 'closed' AND mode = ?`,
       )
       .get(mode) as { total: number };
-    return row.total;
+    return fromMicros(row.total);
+  }
+
+  getNetPnlSince(ts: number, mode: 'paper' | 'live'): number {
+    const row = this.db
+      .prepare(
+        `SELECT COALESCE(SUM(net_pnl_micros), 0) AS total
+         FROM trades WHERE status = 'closed' AND closed_at >= ? AND mode = ?`,
+      )
+      .get(ts, mode) as { total: number };
+    return fromMicros(row.total);
+  }
+
+  getFeesSince(ts: number, mode: 'paper' | 'live'): number {
+    const row = this.db
+      .prepare(
+        `SELECT COALESCE(SUM(fees_micros), 0) AS total
+         FROM trades WHERE status = 'closed' AND closed_at >= ? AND mode = ?`,
+      )
+      .get(ts, mode) as { total: number };
+    return fromMicros(row.total);
   }
 
   countTrades(): number {
