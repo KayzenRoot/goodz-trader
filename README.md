@@ -50,6 +50,8 @@ Demo data is synthetic and clearly labeled. See [docs/screenshots](docs/screensh
   covered in [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md).
 - Exposes protected Prometheus metrics, separate liveness/readiness checks and alert rules
   for down/DB/halt/stale-feed/API/order-rate conditions.
+- Exact micro-USDT ledger columns and a reconciliation report for historical trades
+  ([docs/LEDGER.md](docs/LEDGER.md)).
 - Replays recorded order-flow snapshots through the same strategy/risk/exit logic, with fees,
   slippage, funding, liquidation, walk-forward and a versioned report
   ([docs/BACKTEST.md](docs/BACKTEST.md)).

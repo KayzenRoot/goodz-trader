@@ -24,6 +24,7 @@
     "backup": "node apps/api/scripts/backup.mjs",
     "restore": "node apps/api/scripts/restore.mjs",
     "backtest": "tsx apps/api/src/scripts/backtest.ts",
+    "ledger:reconcile": "tsx apps/api/src/scripts/ledger-reconcile.ts",
     "prepare": "husky"
   },
   "devDependencies": {

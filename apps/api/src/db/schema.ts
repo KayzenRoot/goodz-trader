@@ -141,4 +141,38 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts);
     `,
   },
+  {
+    id: 2,
+    name: 'ledger_micros',
+    sql: `
+      ALTER TABLE trades ADD COLUMN fees_micros INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE trades ADD COLUMN gross_pnl_micros INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE trades ADD COLUMN net_pnl_micros INTEGER NOT NULL DEFAULT 0;
+
+      UPDATE trades SET
+        fees_micros = CAST(ROUND(fees * 1000000) AS INTEGER),
+        gross_pnl_micros = CAST(ROUND(gross_pnl * 1000000) AS INTEGER),
+        net_pnl_micros = CAST(ROUND(net_pnl * 1000000) AS INTEGER);
+
+      CREATE TABLE IF NOT EXISTS ledger_reconciliation (
+        trade_id TEXT PRIMARY KEY,
+        legacy_net REAL NOT NULL,
+        exact_net_micros INTEGER NOT NULL,
+        recomputed_net_micros INTEGER NOT NULL,
+        delta_micros INTEGER NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+
+      INSERT OR REPLACE INTO ledger_reconciliation
+        (trade_id, legacy_net, exact_net_micros, recomputed_net_micros, delta_micros, created_at)
+      SELECT
+        id,
+        net_pnl,
+        net_pnl_micros,
+        CAST(ROUND((gross_pnl - fees) * 1000000) AS INTEGER),
+        CAST(ROUND((gross_pnl - fees) * 1000000) AS INTEGER) - net_pnl_micros,
+        CAST(strftime('%s', 'now') AS INTEGER) * 1000
+      FROM trades;
+    `,
+  },
 ];

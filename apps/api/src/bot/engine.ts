@@ -1544,8 +1544,8 @@ export class TradingEngine {
   private rehydrateDay(): void {
     const dayStart = dayStartMs(this.day, this.config.daily.resetHourUtc);
     const trades = this.options.repo.getClosedTradesSince(dayStart, this.mode);
-    this.realizedDay = round(trades.reduce((sum, trade) => sum + trade.netPnl, 0));
-    this.feesDay = round(trades.reduce((sum, trade) => sum + trade.fees, 0));
+    this.realizedDay = this.options.repo.getNetPnlSince(dayStart, this.mode);
+    this.feesDay = this.options.repo.getFeesSince(dayStart, this.mode);
     this.tradesDay = trades.length;
     this.winsDay = trades.filter((trade) => trade.netPnl > 0).length;
     this.lossesDay = trades.filter((trade) => trade.netPnl <= 0).length;
