@@ -31,6 +31,7 @@ interface PendingShape {
 
 interface EngineInternals {
   pending: PendingShape | null;
+  mode: 'paper' | 'live';
   broker: {
     cancelOrder?: (input: unknown) => Promise<void>;
     placeOrder?: (input: {
@@ -38,11 +39,19 @@ interface EngineInternals {
       price?: number;
       clientOrderId: string;
     }) => Promise<OrderResult>;
+    pollOrder?: (input: unknown) => Promise<OrderResult | null>;
   } | null;
   marketView: MarketView;
   openPositionFromFill: (trade: Trade, fill: OrderResult) => Promise<void>;
   cancelPending: (reason: string) => Promise<void>;
   managePending: (now: number) => Promise<void>;
+  handlePendingTerminal: (trade: Trade, result: OrderResult) => Promise<void>;
+  requotePending: (
+    trade: Trade,
+    pending: PendingShape,
+    now: number,
+    options?: { price?: number; skipCancel?: boolean },
+  ) => Promise<void>;
   entryMetrics: {
     makerFills: number;
     partialFills: number;
@@ -320,5 +329,145 @@ describe('maker partial fill adoption', () => {
     expect(internal.entryMetrics.takerFallbacks).toBe(1);
     expect(harness.repo.getTrade(trade.id)?.status).toBe('canceled');
     expect(harness.engine.getStatus().position).toMatchObject({ side: 'long' });
+  });
+
+  it('adopts a full fill reported by the live poll', async () => {
+    const trade = pendingTrade('trd_live_poll');
+    const clientOrderId = 'gz_live_poll';
+    harness.repo.insertTrade(trade);
+    harness.repo.insertOrder(pendingOrder(trade.id, clientOrderId));
+    internal.pending = {
+      ...pendingEntry(trade.id, clientOrderId),
+      filledQty: 0,
+      avgPrice: null,
+      fee: 0,
+      requotes: 0,
+      expiresAt: now + 5_000,
+    };
+    internal.mode = 'live';
+    internal.marketView = view(100, 100.05);
+    internal.broker = {
+      pollOrder: vi.fn(async (): Promise<OrderResult> => ({
+        exchangeOrderId: '5',
+        clientOrderId,
+        status: 'filled',
+        filledQty: 10,
+        avgPrice: 100.02,
+        fee: 0.02,
+      })),
+    };
+
+    await internal.managePending(now);
+
+    expect(internal.pending).toBeNull();
+    expect(harness.repo.getTrade(trade.id)).toMatchObject({
+      status: 'open',
+      qty: 10,
+      entryPrice: 100.02,
+    });
+    expect(harness.engine.getStatus().position).toMatchObject({ qty: 10 });
+  });
+
+  it('falls back after a rejection when requotes are exhausted', async () => {
+    const trade = pendingTrade('trd_reject_fallback');
+    const clientOrderId = 'gz_reject_fallback';
+    harness.repo.insertTrade(trade);
+    harness.repo.insertOrder(pendingOrder(trade.id, clientOrderId));
+    internal.pending = {
+      ...pendingEntry(trade.id, clientOrderId),
+      filledQty: 0,
+      avgPrice: null,
+      fee: 0,
+      requotes: 1,
+    };
+    internal.marketView = view(100, 100.05);
+    const placeOrder = vi.fn(
+      async (input: {
+        qty: number;
+        price?: number;
+        clientOrderId: string;
+      }): Promise<OrderResult> => ({
+        exchangeOrderId: '10',
+        clientOrderId: input.clientOrderId,
+        status: 'filled',
+        filledQty: input.qty,
+        avgPrice: 100.05,
+        fee: 0.03,
+      }),
+    );
+    internal.broker = { placeOrder };
+
+    await internal.handlePendingTerminal(trade, {
+      exchangeOrderId: '1',
+      clientOrderId,
+      status: 'rejected',
+      filledQty: 0,
+      avgPrice: null,
+      fee: 0,
+    });
+
+    expect(internal.pending).toBeNull();
+    expect(internal.entryMetrics.takerFallbacks).toBe(1);
+    expect(harness.repo.getTrade(trade.id)?.status).toBe('rejected');
+    expect(harness.engine.getStatus().position).toMatchObject({ side: 'long' });
+  });
+
+  it('adopts a late fill when the cancel fails', async () => {
+    const trade = pendingTrade('trd_late_fill');
+    const clientOrderId = 'gz_late_fill';
+    harness.repo.insertTrade(trade);
+    harness.repo.insertOrder(pendingOrder(trade.id, clientOrderId));
+    internal.pending = {
+      ...pendingEntry(trade.id, clientOrderId),
+      filledQty: 0,
+      avgPrice: null,
+      fee: 0,
+      expiresAt: now - 1,
+    };
+    internal.marketView = view(100, 100.05);
+    internal.broker = {
+      cancelOrder: vi.fn(async () => {
+        throw new Error('network');
+      }),
+      pollOrder: vi.fn(async (): Promise<OrderResult> => ({
+        exchangeOrderId: '6',
+        clientOrderId,
+        status: 'filled',
+        filledQty: 2,
+        avgPrice: 100,
+        fee: 0.01,
+      })),
+    };
+
+    await internal.managePending(now);
+
+    expect(internal.pending).toBeNull();
+    expect(harness.repo.getTrade(trade.id)).toMatchObject({ status: 'open', qty: 2 });
+    expect(harness.engine.getStatus().position).toMatchObject({ qty: 2 });
+  });
+
+  it('cancels safely when no passive price is available for a requote', async () => {
+    const trade = pendingTrade('trd_no_price');
+    const clientOrderId = 'gz_no_price';
+    harness.repo.insertTrade(trade);
+    harness.repo.insertOrder(pendingOrder(trade.id, clientOrderId));
+    const pending = {
+      ...pendingEntry(trade.id, clientOrderId),
+      price: 100,
+      filledQty: 0,
+      avgPrice: null,
+      fee: 0,
+      requotes: 0,
+    };
+    internal.pending = pending;
+    internal.marketView = view(100, 100);
+    const placeOrder = vi.fn();
+    internal.broker = { placeOrder };
+
+    await internal.requotePending(trade, pending, now, { skipCancel: true });
+
+    expect(placeOrder).not.toHaveBeenCalled();
+    expect(internal.pending).toBeNull();
+    expect(harness.repo.getTrade(trade.id)?.status).toBe('canceled');
   });
 });
