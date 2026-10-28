@@ -24,7 +24,7 @@ export interface Harness {
 }
 
 export async function createHarness(
-  options: { password?: string; metricsToken?: string } = {},
+  options: { password?: string; metricsToken?: string; liveTradingEnabled?: boolean } = {},
 ): Promise<Harness> {
   const db = openDatabase(':memory:');
   const repo = new Repository(db);
@@ -43,7 +43,7 @@ export async function createHarness(
     AUTH_PASSWORD: options.password,
     MEXC_BASE_URL: 'https://contract.mexc.com',
     MEXC_WS_URL: 'wss://contract.mexc.com/edge',
-    LIVE_TRADING_ENABLED: false,
+    LIVE_TRADING_ENABLED: options.liveTradingEnabled ?? false,
     SEED_DEMO: false,
     COOKIE_SECURE: false,
     TRUST_PROXY: false,
@@ -63,7 +63,7 @@ export async function createHarness(
   const settings = new SettingsService({
     repo,
     secret,
-    liveTradingEnabled: false,
+    liveTradingEnabled: options.liveTradingEnabled ?? false,
     authRequired,
     mexcBaseUrl: env.MEXC_BASE_URL,
     logger: testLogger,

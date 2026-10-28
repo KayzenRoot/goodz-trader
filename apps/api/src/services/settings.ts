@@ -211,10 +211,13 @@ export class SettingsService {
     });
   }
 
-  async testConnection(input?: {
-    apiKey?: string;
-    apiSecret?: string;
-  }): Promise<ConnectionTestResult> {
+  async testConnection(
+    input?: {
+      apiKey?: string;
+      apiSecret?: string;
+    },
+    options: { audit?: boolean } = {},
+  ): Promise<ConnectionTestResult> {
     const credentials =
       input?.apiKey && input.apiSecret
         ? { apiKey: input.apiKey, apiSecret: input.apiSecret, source: 'settings' as const }
@@ -227,13 +230,15 @@ export class SettingsService {
     try {
       const client = this.createClient(credentials);
       const result = await client.testConnection();
-      this.options.repo.insertAudit({
-        ts: Date.now(),
-        actor: 'dashboard',
-        action: 'settings.test_connection',
-        detail: JSON.stringify({ equity: result.equity, positions: result.openPositions }),
-        ip: null,
-      });
+      if (options.audit !== false) {
+        this.options.repo.insertAudit({
+          ts: Date.now(),
+          actor: 'dashboard',
+          action: 'settings.test_connection',
+          detail: JSON.stringify({ equity: result.equity, positions: result.openPositions }),
+          ip: null,
+        });
+      }
       return result;
     } catch (error) {
       if (error instanceof MexcApiError) {
@@ -241,6 +246,79 @@ export class SettingsService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Preflight for real money. It never places an order; it reports every gate
+   * that must be green before the start dialog can succeed.
+   */
+  async liveReadiness(): Promise<{
+    ready: boolean;
+    blockers: string[];
+    checks: {
+      credentials: boolean;
+      serverFlag: boolean;
+      oneWay: boolean;
+      equityUsd: number;
+      minEquityUsd: number;
+      equityOk: boolean;
+      openPositions: number;
+      openOrders: number;
+      flat: boolean;
+      openLedgerTrades: number;
+      ledgerFlat: boolean;
+      killSwitch: boolean;
+      positionMode: number | null;
+    };
+  }> {
+    const config = this.config();
+    const checks = {
+      credentials: this.credentials().source !== 'none',
+      serverFlag: this.options.liveTradingEnabled,
+      oneWay: false,
+      equityUsd: 0,
+      minEquityUsd: config.risk.minEquityUsd,
+      equityOk: false,
+      openPositions: 0,
+      openOrders: 0,
+      flat: false,
+      openLedgerTrades: this.options.repo.getOpenTrades().length,
+      ledgerFlat: this.options.repo.getOpenTrades().length === 0,
+      killSwitch: config.execution.killSwitch,
+      positionMode: null as number | null,
+    };
+    const blockers: string[] = [];
+
+    if (!checks.credentials) blockers.push('Credenciais MEXC não configuradas.');
+    if (!checks.serverFlag) blockers.push('LIVE_TRADING_ENABLED está false no servidor.');
+    if (checks.killSwitch) blockers.push('Kill switch ativo; desative antes de operar.');
+
+    if (checks.credentials) {
+      try {
+        const result = await this.testConnection(undefined, { audit: false });
+        checks.positionMode = result.positionMode;
+        checks.oneWay = result.positionMode === 2;
+        checks.equityUsd = result.equity;
+        checks.equityOk = result.equity >= config.risk.minEquityUsd;
+        checks.openPositions = result.openPositions;
+        checks.openOrders = result.openOrders;
+        checks.flat = result.openPositions === 0 && result.openOrders === 0;
+        if (!checks.oneWay) blockers.push('Conta MEXC em hedge; mude para one-way.');
+        if (!checks.equityOk) {
+          blockers.push(
+            `Equity ${result.equity.toFixed(2)} USDT abaixo do mínimo ${config.risk.minEquityUsd} USDT.`,
+          );
+        }
+        if (!checks.flat) blockers.push('Existem posições ou ordens abertas na MEXC.');
+      } catch (error) {
+        blockers.push(
+          `Falha ao consultar a MEXC: ${error instanceof Error ? error.message : 'erro desconhecido'}`,
+        );
+      }
+    }
+
+    if (!checks.ledgerFlat) blockers.push('Existe trade aberto no ledger local.');
+    return { ready: blockers.length === 0, blockers, checks };
   }
 
   telegramToken(): string {

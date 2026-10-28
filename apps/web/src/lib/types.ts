@@ -89,6 +89,26 @@ export interface NotificationTestResult {
   }>;
 }
 
+export interface LiveReadiness {
+  ready: boolean;
+  blockers: string[];
+  checks: {
+    credentials: boolean;
+    serverFlag: boolean;
+    oneWay: boolean;
+    equityUsd: number;
+    minEquityUsd: number;
+    equityOk: boolean;
+    openPositions: number;
+    openOrders: number;
+    flat: boolean;
+    openLedgerTrades: number;
+    ledgerFlat: boolean;
+    killSwitch: boolean;
+    positionMode: number | null;
+  };
+}
+
 export interface SettingsPayload {
   config: BotConfig;
   secrets: {
