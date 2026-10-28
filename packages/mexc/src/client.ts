@@ -239,12 +239,13 @@ export class MexcFuturesClient {
   }
 
   async getContractDetail(symbol?: string): Promise<ContractSpec[]> {
-    const data = await this.request<RawContract[]>(
+    const data = await this.request<RawContract | RawContract[]>(
       'GET',
       '/api/v1/contract/detail',
       symbol ? { query: { symbol } } : {},
     );
-    return (data ?? []).map(mapContract);
+    const rows = Array.isArray(data) ? data : data ? [data] : [];
+    return rows.map(mapContract);
   }
 
   async getContract(symbol: string): Promise<ContractSpec> {
