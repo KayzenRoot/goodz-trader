@@ -80,6 +80,26 @@ describe('analytics', () => {
     expect(summary.maxDrawdownPct).toBe(0);
   });
 
+  it('sums tiny trades exactly with micros', () => {
+    const trades = Array.from({ length: 10_000 }, (_, index) =>
+      trade({
+        id: `micro-${index}`,
+        netPnl: 0.01,
+        fees: 0.000001,
+        closedAt: now - 1_000,
+        openedAt: now - 61_000,
+      }),
+    );
+    const summary = summarizeTrades(trades, [], now);
+    expect(summary.totalPnl).toBe(100);
+    expect(summary.dayPnl).toBe(100);
+    expect(summary.fees).toBe(0.01);
+
+    const daily = buildDailySeries(trades, 1, now);
+    expect(daily.reduce((sum, item) => sum + item.pnl, 0)).toBe(100);
+    expect(daily.reduce((sum, item) => sum + item.fees, 0)).toBe(0.01);
+  });
+
   it('builds a filled daily series', () => {
     const series = buildDailySeries(sample(), 10, now);
     expect(series).toHaveLength(10);

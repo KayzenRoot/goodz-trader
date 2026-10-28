@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily Goodz Trader backup
+Documentation=file:/opt/goodz-trader/docs/RUNBOOK.md
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 UTC
+RandomizedDelaySec=300
+Persistent=true
+Unit=goodz-backup.service
+
+[Install]
+WantedBy=timers.target

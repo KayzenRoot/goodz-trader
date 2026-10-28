@@ -25,6 +25,30 @@ Each run writes a versioned JSON + Markdown pair:
 `reports/backtest-v1-<timestamp>-<dataset-hash>.json|md`. The JSON contains every trade and
 equity point; the Markdown is the human summary. `reports/` is gitignored.
 
+## Recording real snapshots
+
+Enable the built-in recorder to capture the same order-flow fields the strategy uses:
+
+```bash
+MARKET_RECORD_ENABLED=true \
+MARKET_RECORD_DIR=./.data/market \
+pnpm start
+```
+
+In Docker, set the same variables in `.env` (use `MARKET_RECORD_DIR=/data/market`) and restart.
+Files are `market-YYYY-MM-DD.jsonl`, rotate daily/size, drop frames under disk backpressure and
+are pruned after `MARKET_RECORD_KEEP_DAYS` (default 14). The recording is best-effort: check
+`records`/`droppedBackpressure` in logs if a run looks incomplete.
+
+Run a paper session for 24–72h, then:
+
+```bash
+pnpm backtest -- --dataset .data/market/market-YYYY-MM-DD.jsonl \
+  --walk-forward --out reports
+```
+
+Synthetic data is a fixture; only recorded public/paper data is evidence about the edge.
+
 ## Dataset format (JSONL)
 
 One JSON object per line. Comments (`#`) and blank lines are ignored. At least 50 rows are

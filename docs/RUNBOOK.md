@@ -63,6 +63,24 @@ The restore verifies the backup before replacing the target, removes stale `-wal
 files and reports the restored row counts. Compare those counts and the dashboard PnL with the
 pre-restore values.
 
+### Scheduled off-host backup
+
+`deploy/systemd/goodz-backup.service` + `.timer` run a verified backup daily at 03:15 UTC. They
+work with the API stopped and mount the same compose volume:
+
+```bash
+sudo cp deploy/systemd/goodz-backup.* /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now goodz-backup.timer
+systemctl list-timers goodz-backup.timer
+
+# ship files off-host (rclone example)
+rclone copy backups/ remote:goodz-backups/ --min-age 1m
+```
+
+Verify one manual run before relying on the timer: `sudo systemctl start goodz-backup.service`
+and check the JSON output in `journalctl -u goodz-backup`.
+
 Retention (daily, after startup):
 
 - `RETENTION_LOGS_DAYS` (default 14)

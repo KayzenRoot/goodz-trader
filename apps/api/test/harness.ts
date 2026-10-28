@@ -53,6 +53,10 @@ export async function createHarness(
     RETENTION_AUDIT_DAYS: 365,
     METRICS_ENABLED: true,
     METRICS_TOKEN: options.metricsToken,
+    MARKET_RECORD_ENABLED: false,
+    MARKET_RECORD_DIR: './.data/market',
+    MARKET_RECORD_MAX_FILE_MB: 256,
+    MARKET_RECORD_KEEP_DAYS: 14,
     authRequired,
   };
 

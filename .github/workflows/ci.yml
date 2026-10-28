@@ -80,6 +80,59 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  docker:
+    name: Docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: goodz-trader:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test container
+        run: |
+          secret=$(openssl rand -hex 32)
+          docker run -d --name goodz-ci -p 3001:3001 \
+            -e NODE_ENV=production \
+            -e APP_SECRET="$secret" \
+            -e AUTH_PASSWORD=ci-password-123 \
+            -e DATABASE_PATH=/data/goodz.db \
+            -e WEB_DIST_PATH=/app/apps/web/dist \
+            -e SEED_DEMO=false \
+            goodz-trader:ci
+          for _ in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:3001/api/health/ready; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3001/api/health/ready
+          test "$(docker exec goodz-ci id -u)" = "1000"
+          docker stop goodz-ci
+          test "$(docker inspect -f '{{.State.ExitCode}}' goodz-ci)" = "0"
+
+      - name: Container logs
+        if: failure()
+        run: docker logs goodz-ci || true
+
+      - name: Remove container
+        if: always()
+        run: docker rm -f goodz-ci || true
+
   e2e:
     name: E2E
     runs-on: ubuntu-latest
@@ -136,15 +189,16 @@ jobs:
   quality-gate:
     name: Quality Gate
     if: always()
-    needs: [quality, e2e]
+    needs: [quality, docker, e2e]
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate required checks
         run: |
           echo "Quality: ${{ needs.quality.result }}"
+          echo "Docker:  ${{ needs.docker.result }}"
           echo "E2E:     ${{ needs.e2e.result }}"
-          if [ "${{ needs.quality.result }}" != "success" ] || [ "${{ needs.e2e.result }}" != "success" ]; then
-            echo "::error::Quality Gate failed. Inspect Quality/E2E jobs."
+          if [ "${{ needs.quality.result }}" != "success" ] || [ "${{ needs.docker.result }}" != "success" ] || [ "${{ needs.e2e.result }}" != "success" ]; then
+            echo "::error::Quality Gate failed. Inspect Quality/Docker/E2E jobs."
             exit 1
           fi
           echo "Quality Gate passed."

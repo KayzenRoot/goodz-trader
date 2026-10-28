@@ -12,6 +12,7 @@ import { MaintenanceService } from './services/maintenance';
 import { MetricsRegistry } from './services/metrics';
 import { NotificationService } from './services/notifier';
 import { SettingsService } from './services/settings';
+import { SnapshotRecorder } from './services/snapshot-recorder';
 
 const env = loadEnv();
 const pino = createLogger(env.NODE_ENV, env.LOG_LEVEL);
@@ -78,6 +79,14 @@ const notifier = new NotificationService(
   logger.child('notifier'),
 );
 const metrics = new MetricsRegistry();
+const recorder = new SnapshotRecorder({
+  enabled: env.MARKET_RECORD_ENABLED,
+  directory: env.MARKET_RECORD_DIR,
+  maxFileBytes: env.MARKET_RECORD_MAX_FILE_MB * 1_048_576,
+  keepDays: env.MARKET_RECORD_KEEP_DAYS,
+  eventBus: events,
+  logger: logger.child('recorder'),
+});
 
 const engine = new TradingEngine({
   repo,
@@ -141,6 +150,7 @@ async function shutdown(signal: string): Promise<void> {
     });
   }
   market.stop();
+  await recorder.stop();
   maintenance.stop();
   await app.close();
   closeDatabase(db);

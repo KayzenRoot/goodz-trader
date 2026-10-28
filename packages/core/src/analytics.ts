@@ -1,3 +1,4 @@
+import { fromMicros, sumMicros, toMicros } from './money';
 import { maxDrawdownPct, profitFactor, winRate } from './pnl';
 import type { EquityPoint, MetricsSummary, Trade } from './types';
 
@@ -17,18 +18,30 @@ export function summarizeTrades(
   const closed = sortedClosed(trades);
   const wins = closed.filter((trade) => trade.netPnl > 0);
   const losses = closed.filter((trade) => trade.netPnl <= 0);
-  const grossProfit = wins.reduce((sum, trade) => sum + trade.netPnl, 0);
-  const grossLoss = Math.abs(losses.reduce((sum, trade) => sum + trade.netPnl, 0));
-  const totalPnl = closed.reduce((sum, trade) => sum + trade.netPnl, 0);
-  const fees = closed.reduce((sum, trade) => sum + trade.fees, 0);
+  const grossProfitMicros = sumMicros(wins.map((trade) => toMicros(trade.netPnl)));
+  const grossLossMicros = Math.abs(sumMicros(losses.map((trade) => toMicros(trade.netPnl))));
+  const totalPnlMicros = sumMicros(closed.map((trade) => toMicros(trade.netPnl)));
+  const feesMicros = sumMicros(closed.map((trade) => toMicros(trade.fees)));
+  const grossProfit = fromMicros(grossProfitMicros);
+  const grossLoss = fromMicros(grossLossMicros);
+  const totalPnl = fromMicros(totalPnlMicros);
+  const fees = fromMicros(feesMicros);
   const dayStart = now - DAY_MS;
   const weekStart = now - 7 * DAY_MS;
-  const dayPnl = closed
-    .filter((trade) => (trade.closedAt ?? 0) >= dayStart)
-    .reduce((sum, trade) => sum + trade.netPnl, 0);
-  const weekPnl = closed
-    .filter((trade) => (trade.closedAt ?? 0) >= weekStart)
-    .reduce((sum, trade) => sum + trade.netPnl, 0);
+  const dayPnl = fromMicros(
+    sumMicros(
+      closed
+        .filter((trade) => (trade.closedAt ?? 0) >= dayStart)
+        .map((trade) => toMicros(trade.netPnl)),
+    ),
+  );
+  const weekPnl = fromMicros(
+    sumMicros(
+      closed
+        .filter((trade) => (trade.closedAt ?? 0) >= weekStart)
+        .map((trade) => toMicros(trade.netPnl)),
+    ),
+  );
   const lastEquity = equity.at(-1)?.equity ?? 0;
   const firstEquity = equity.at(0)?.equity ?? 0;
   const dayPnlPct = firstEquity > 0 ? (dayPnl / firstEquity) * 100 : 0;
@@ -57,8 +70,12 @@ export function summarizeTrades(
     ),
     fees: round(fees),
     maxDrawdownPct: maxDrawdownPct(equity.map((point) => point.equity)),
-    bestTrade: closed.length ? round(Math.max(...closed.map((trade) => trade.netPnl))) : 0,
-    worstTrade: closed.length ? round(Math.min(...closed.map((trade) => trade.netPnl))) : 0,
+    bestTrade: closed.length
+      ? fromMicros(Math.max(...closed.map((trade) => toMicros(trade.netPnl))))
+      : 0,
+    worstTrade: closed.length
+      ? fromMicros(Math.min(...closed.map((trade) => toMicros(trade.netPnl))))
+      : 0,
     currentStreak: streaks.current,
     longestWinStreak: streaks.longestWin,
     longestLossStreak: streaks.longestLoss,
@@ -102,15 +119,17 @@ export function buildDailySeries(
       wins: 0,
       losses: 0,
     };
-    item.pnl = round(item.pnl + trade.netPnl);
-    item.fees = round(item.fees + trade.fees);
+    item.pnl += toMicros(trade.netPnl);
+    item.fees += toMicros(trade.fees);
     item.trades += 1;
     if (trade.netPnl > 0) item.wins += 1;
     else item.losses += 1;
     result.set(key, item);
   }
 
-  return [...result.values()].sort((a, b) => a.dayKey.localeCompare(b.dayKey));
+  return [...result.values()]
+    .sort((a, b) => a.dayKey.localeCompare(b.dayKey))
+    .map((item) => ({ ...item, pnl: fromMicros(item.pnl), fees: fromMicros(item.fees) }));
 }
 
 export function buildHourlySeries(
@@ -128,14 +147,14 @@ export function buildHourlySeries(
     const hour = new Date(trade.closedAt ?? 0).getUTCHours();
     const item = hours[hour];
     if (!item) continue;
-    item.pnl = round(item.pnl + trade.netPnl);
+    item.pnl += toMicros(trade.netPnl);
     item.trades += 1;
     if (trade.netPnl > 0) item.wins += 1;
   }
 
   return hours.map(({ hour, pnl, trades, wins }) => ({
     hour,
-    pnl,
+    pnl: fromMicros(pnl),
     trades,
     winRate: winRate(wins, trades - wins),
   }));
@@ -166,10 +185,12 @@ export function buildExitReasons(
     const reason = trade.closeReason || 'unknown';
     const item = map.get(reason) ?? { reason, count: 0, pnl: 0 };
     item.count += 1;
-    item.pnl = round(item.pnl + trade.netPnl);
+    item.pnl += toMicros(trade.netPnl);
     map.set(reason, item);
   }
-  return [...map.values()].sort((a, b) => b.count - a.count);
+  return [...map.values()]
+    .sort((a, b) => b.count - a.count)
+    .map((item) => ({ ...item, pnl: fromMicros(item.pnl) }));
 }
 
 function calculateStreaks(closed: Trade[]): {
