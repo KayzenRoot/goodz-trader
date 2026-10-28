@@ -250,6 +250,7 @@ export class TradingEngine {
       consecutiveLosses: this.consecutiveLosses,
       targetProgress: progressPct(Math.max(0, dayPnl), this.config.daily.profitTargetUsd),
       lossProgress: progressPct(Math.max(0, -dayPnl), this.config.daily.lossLimitUsd),
+      ordersLastMinute: this.ordersLastMinute(now),
       haltReason: this.haltReason,
       lastError: this.lastError,
       position,

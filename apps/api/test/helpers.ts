@@ -120,6 +120,7 @@ export function idleStatus(overrides: Partial<EngineStatus> = {}): EngineStatus 
     consecutiveLosses: 0,
     targetProgress: 0,
     lossProgress: 0,
+    ordersLastMinute: 0,
     haltReason: null,
     lastError: null,
     position: null,

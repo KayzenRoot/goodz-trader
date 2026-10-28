@@ -272,6 +272,7 @@ export interface EngineStatus {
   consecutiveLosses: number;
   targetProgress: number;
   lossProgress: number;
+  ordersLastMinute: number;
   haltReason: HaltReason | null;
   lastError: string | null;
   position: PositionView | null;

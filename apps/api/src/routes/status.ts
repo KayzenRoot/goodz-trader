@@ -17,6 +17,7 @@ import { fallbackContract, isKnownContract } from '../services/contracts';
 import { generateSyntheticCandles } from '../services/candles';
 import type { EventBus } from '../services/events';
 import type { MarketDataService } from '../services/market-data';
+import { metricsAuthorized, type MetricsRegistry } from '../services/metrics';
 import type { SettingsService } from '../services/settings';
 import type { TradingEngine } from '../bot/engine';
 import { parseInput } from './helpers';
@@ -27,6 +28,10 @@ interface StatusRoutesDeps {
   engine: TradingEngine;
   market: MarketDataService;
   events: EventBus;
+  metrics: MetricsRegistry;
+  nodeEnv: string;
+  metricsEnabled: boolean;
+  metricsToken?: string;
 }
 
 const rangeSchema = z.object({
@@ -54,20 +59,79 @@ const candleCache = new Map<
 >();
 
 export function registerStatusRoutes(app: FastifyInstance, deps: StatusRoutesDeps): void {
-  app.get('/api/health', async () => {
+  app.get('/api/health/live', async () => ({
+    ok: true,
+    name: APP_NAME,
+    now: Date.now(),
+    uptime: process.uptime(),
+  }));
+
+  app.get('/api/health/ready', async (_request, reply) => {
+    let dbUp = false;
+    try {
+      dbUp = deps.repo.ping();
+    } catch {
+      dbUp = false;
+    }
     const status = deps.engine.getStatus();
-    return {
-      ok: true,
+    return reply.code(dbUp ? 200 : 503).send({
+      ok: dbUp,
+      name: APP_NAME,
+      now: Date.now(),
+      checks: { db: dbUp },
+      bot: status.status,
+      feed: status.feed.connected,
+    });
+  });
+
+  app.get('/api/health', async (_request, reply) => {
+    const status = deps.engine.getStatus();
+    let dbUp = false;
+    try {
+      dbUp = deps.repo.ping();
+    } catch {
+      dbUp = false;
+    }
+    return reply.code(dbUp ? 200 : 503).send({
+      ok: dbUp,
       name: APP_NAME,
       version: '0.1.0',
       now: Date.now(),
       bot: status.status,
       mode: status.mode,
       feed: status.feed,
-      db: true,
+      db: dbUp,
       uptime: process.uptime(),
-    };
+    });
   });
+
+  app.get(
+    '/metrics',
+    { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      if (!deps.metricsEnabled) {
+        return reply.code(404).send({ error: 'not_found' });
+      }
+      if (
+        !metricsAuthorized({
+          authorization: request.headers.authorization,
+          ip: request.ip,
+          token: deps.metricsToken,
+          nodeEnv: deps.nodeEnv,
+        })
+      ) {
+        reply.header('WWW-Authenticate', 'Bearer');
+        return reply.code(401).send({ error: 'unauthorized' });
+      }
+      reply.header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+      return deps.metrics.render({
+        version: '0.1.0',
+        now: Date.now(),
+        status: deps.engine.getStatus(),
+        dbUp: deps.repo.ping(),
+      });
+    },
+  );
 
   app.get('/api/status', async () => deps.engine.getStatus());
 

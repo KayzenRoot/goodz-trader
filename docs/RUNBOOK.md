@@ -86,7 +86,8 @@ exporting those trades first.
 
 ## Startup checklist
 
-- [ ] `/api/health` returns ok.
+- [ ] `/api/health` returns ok and `/api/health/ready` returns 200.
+- [ ] `/metrics` returns text exposition (with the Bearer token if configured).
 - [ ] Dashboard loads and shows **Parado**.
 - [ ] Settings show the expected symbol, leverage, daily target/stop.
 - [ ] API connection test shows the expected equity and one-way mode.
@@ -225,6 +226,7 @@ has uncheckpointed pages. Test restores quarterly.
 ## Known operational gaps
 
 - Automated on-host backups exist, but shipping them off-host is left to the operator/cron.
-- No Prometheus endpoint yet (tracked issue).
+- Prometheus metrics and rules are provided in `deploy/prometheus`; a hosted Prometheus/Grafana
+  stack is not bundled. See [OBSERVABILITY.md](OBSERVABILITY.md).
 - No automatic live-position reconciliation after a **process crash** (manual review required).
 - No alert when the process dies (use Docker restart + external monitoring).

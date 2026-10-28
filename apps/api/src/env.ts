@@ -27,6 +27,8 @@ const envSchema = z.object({
   RETENTION_LOGS_DAYS: z.coerce.number().int().min(1).max(3_650).default(14),
   RETENTION_EQUITY_DAYS: z.coerce.number().int().min(1).max(3_650).default(90),
   RETENTION_AUDIT_DAYS: z.coerce.number().int().min(1).max(3_650).default(365),
+  METRICS_ENABLED: envBooleanSchema.default(true),
+  METRICS_TOKEN: z.string().min(16).max(256).optional(),
 });
 
 export interface Env {
@@ -51,6 +53,8 @@ export interface Env {
   RETENTION_LOGS_DAYS: number;
   RETENTION_EQUITY_DAYS: number;
   RETENTION_AUDIT_DAYS: number;
+  METRICS_ENABLED: boolean;
+  METRICS_TOKEN?: string;
   authRequired: boolean;
 }
 

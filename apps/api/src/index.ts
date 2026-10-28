@@ -9,6 +9,7 @@ import { seedDemoData } from './services/demo';
 import { EventBus } from './services/events';
 import { MarketDataService } from './services/market-data';
 import { MaintenanceService } from './services/maintenance';
+import { MetricsRegistry } from './services/metrics';
 import { NotificationService } from './services/notifier';
 import { SettingsService } from './services/settings';
 
@@ -76,6 +77,7 @@ const notifier = new NotificationService(
   () => settings.telegramToken(),
   logger.child('notifier'),
 );
+const metrics = new MetricsRegistry();
 
 const engine = new TradingEngine({
   repo,
@@ -99,6 +101,7 @@ const app = await buildApp({
   market,
   events,
   notifier,
+  metrics,
   logger,
 });
 
