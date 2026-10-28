@@ -1,41 +1,7 @@
-import type { Trade } from '@goodz/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createHarness, type Harness } from './harness';
-import { testConfig } from './helpers';
-
-const now = Date.now();
-
-function sampleTrade(overrides: Partial<Trade> = {}): Trade {
-  return {
-    id: 'trd_test_1',
-    mode: 'paper',
-    symbol: 'BTC_USDT',
-    side: 'long',
-    status: 'closed',
-    qty: 10,
-    contractSize: 0.0001,
-    entryPrice: 100_000,
-    exitPrice: 100_050,
-    notionalUsd: 100,
-    marginUsd: 10,
-    leverage: 10,
-    fees: 0.08,
-    grossPnl: 0.5,
-    netPnl: 0.42,
-    rMultiple: 1.2,
-    riskUsd: 0.35,
-    openReason: 'unit test',
-    closeReason: 'take_profit',
-    openedAt: now - 30_000,
-    closedAt: now,
-    createdAt: now - 30_000,
-    updatedAt: now,
-    isDemo: false,
-    meta: {},
-    ...overrides,
-  };
-}
+import { sampleClosedTrade as sampleTrade, testConfig } from './helpers';
 
 describe('API', () => {
   let harness: Harness;

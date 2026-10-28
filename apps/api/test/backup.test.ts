@@ -1,4 +1,3 @@
-import type { Trade } from '@goodz/core';
 import Database from 'better-sqlite3';
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -8,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { backupDatabase, restoreDatabase } from '../scripts/backup-lib.mjs';
 import { closeDatabase, openDatabase } from '../src/db/database';
 import { Repository } from '../src/db/repo';
+import { sampleClosedTrade } from './helpers';
 
 const now = Date.now();
 let dirs: string[] = [];
@@ -22,40 +22,10 @@ function seedSource(source: string, withData = true): void {
   const db = openDatabase(source);
   if (withData) {
     const repo = new Repository(db);
-    repo.insertTrade(seedTrade());
+    repo.insertTrade(sampleClosedTrade({ id: 'trd_backup', openReason: 'backup test' }));
     repo.insertEquity({ ts: now, equity: 1_000, balance: 1_000, unrealized: 0, dayPnl: 0 });
   }
   closeDatabase(db);
-}
-
-function seedTrade(): Trade {
-  return {
-    id: 'trd_backup',
-    mode: 'paper',
-    symbol: 'BTC_USDT',
-    side: 'long',
-    status: 'closed',
-    qty: 10,
-    contractSize: 0.0001,
-    entryPrice: 100_000,
-    exitPrice: 100_050,
-    notionalUsd: 100,
-    marginUsd: 10,
-    leverage: 10,
-    fees: 0.08,
-    grossPnl: 0.5,
-    netPnl: 0.42,
-    rMultiple: 1.2,
-    riskUsd: 0.35,
-    openReason: 'backup test',
-    closeReason: 'take_profit',
-    openedAt: now - 30_000,
-    closedAt: now,
-    createdAt: now - 30_000,
-    updatedAt: now,
-    isDemo: false,
-    meta: {},
-  };
 }
 
 afterEach(() => {
