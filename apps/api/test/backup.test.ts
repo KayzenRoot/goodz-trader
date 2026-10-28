@@ -10,6 +10,23 @@ import { closeDatabase, openDatabase } from '../src/db/database';
 import { Repository } from '../src/db/repo';
 
 const now = Date.now();
+let dirs: string[] = [];
+
+function tempWorkspace(prefix: string): { dir: string; source: string; backupDir: string } {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  dirs.push(dir);
+  return { dir, source: join(dir, 'goodz.db'), backupDir: join(dir, 'backups') };
+}
+
+function seedSource(source: string, withData = true): void {
+  const db = openDatabase(source);
+  if (withData) {
+    const repo = new Repository(db);
+    repo.insertTrade(seedTrade());
+    repo.insertEquity({ ts: now, equity: 1_000, balance: 1_000, unrealized: 0, dayPnl: 0 });
+  }
+  closeDatabase(db);
+}
 
 function seedTrade(): Trade {
   return {
@@ -41,8 +58,6 @@ function seedTrade(): Trade {
   };
 }
 
-let dirs: string[] = [];
-
 afterEach(() => {
   for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
   dirs = [];
@@ -50,16 +65,8 @@ afterEach(() => {
 
 describe('backup and restore', () => {
   it('creates a verified WAL-safe backup and restores it with counts intact', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'goodz-backup-'));
-    dirs.push(dir);
-    const source = join(dir, 'goodz.db');
-    const backupDir = join(dir, 'backups');
-
-    const db = openDatabase(source);
-    const repo = new Repository(db);
-    repo.insertTrade(seedTrade());
-    repo.insertEquity({ ts: now, equity: 1_000, balance: 1_000, unrealized: 0, dayPnl: 0 });
-    closeDatabase(db);
+    const { dir, source, backupDir } = tempWorkspace('goodz-backup-');
+    seedSource(source);
 
     const backup = await backupDatabase({ sourcePath: source, backupDir, keep: 2 });
     expect(backup.integrity).toBe('ok');
@@ -78,13 +85,9 @@ describe('backup and restore', () => {
   });
 
   it('prunes old backups by timestamp', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'goodz-prune-'));
-    dirs.push(dir);
-    const source = join(dir, 'goodz.db');
-    const db = openDatabase(source);
-    closeDatabase(db);
+    const { source, backupDir } = tempWorkspace('goodz-prune-');
+    seedSource(source, false);
 
-    const backupDir = join(dir, 'backups');
     for (const date of [
       new Date('2026-01-01T00:00:00Z'),
       new Date('2026-01-02T00:00:00Z'),
@@ -94,7 +97,6 @@ describe('backup and restore', () => {
     }
 
     const files = readdirSync(backupDir).filter((name) => name.endsWith('.db'));
-    expect(files).toHaveLength(2);
     expect(files).toEqual([
       'goodz-2026-01-02T00-00-00-000Z.db',
       'goodz-2026-01-03T00-00-00-000Z.db',
@@ -102,10 +104,9 @@ describe('backup and restore', () => {
   });
 
   it('refuses an invalid source instead of producing a broken backup', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'goodz-invalid-'));
-    dirs.push(dir);
+    const { dir, backupDir } = tempWorkspace('goodz-invalid-');
     await expect(
-      backupDatabase({ sourcePath: join(dir, 'missing.db'), backupDir: join(dir, 'backups') }),
+      backupDatabase({ sourcePath: join(dir, 'missing.db'), backupDir }),
     ).rejects.toThrow('Banco não encontrado');
   });
 });
