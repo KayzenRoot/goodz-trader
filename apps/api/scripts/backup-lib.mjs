@@ -92,5 +92,10 @@ export function restoreDatabase({ backupPath, targetPath }) {
   }
 
   const restored = verify(target);
+  for (const key of ['trades', 'orders', 'equity']) {
+    if (restored[key] !== verified[key]) {
+      throw new Error(`Contagem divergente após restore: ${key}`);
+    }
+  }
   return { path: target, ...restored };
 }

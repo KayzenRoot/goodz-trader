@@ -200,8 +200,8 @@ docker compose up -d --build
 ```
 
 The API serves the built SPA on port 3001. SQLite lives in the `goodz-data` volume. Back up
-with `docker compose exec goodz node apps/api/scripts/backup.mjs /backups`; restore only with
-the service stopped (see [docs/RUNBOOK.md](docs/RUNBOOK.md)).
+with `docker compose exec -e BACKUP_DIR=/backups goodz node apps/api/scripts/backup.mjs`;
+restore with the service stopped (see [docs/RUNBOOK.md](docs/RUNBOOK.md)).
 
 ## License
 

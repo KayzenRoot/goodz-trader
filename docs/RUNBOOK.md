@@ -38,21 +38,25 @@ trade/order/equity counts. Run it while the bot is running; it does not block tr
 
 ```bash
 # host / development
-pnpm backup                       # ./backups by default
+pnpm backup                       # ./.data/goodz.db -> ./backups
 BACKUP_KEEP=14 pnpm backup
+BACKUP_DIR=/mnt/goodz pnpm backup
 
 # container
-docker compose exec goodz node apps/api/scripts/backup.mjs /backups
+docker compose exec -e BACKUP_DIR=/backups goodz node apps/api/scripts/backup.mjs
 ```
 
 Restore **only with the API stopped**:
 
 ```bash
 docker compose stop goodz
-docker compose run --rm --entrypoint node goodz \
-  apps/api/scripts/restore.mjs /backups/goodz-2026-01-01T00-00-00-000Z.db /data/goodz.db
+docker compose run --rm --entrypoint node \
+  -e BACKUP_FILE=/backups/goodz-2026-01-01T00-00-00-000Z.db \
+  goodz apps/api/scripts/restore.mjs
 docker compose up -d
 ```
+
+`DATABASE_PATH` (already `/data/goodz.db` in compose) selects the restore target.
 
 The restore verifies the backup before replacing the target, removes stale `-wal`/`-shm`
 files and reports the restored row counts. Compare those counts and the dashboard PnL with the
