@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createHarness, type Harness } from './harness';
 import { sampleClosedTrade as sampleTrade, testConfig } from './helpers';
@@ -22,6 +22,51 @@ describe('API', () => {
     const status = await harness.app.inject({ method: 'GET', url: '/api/status' });
     expect(status.statusCode).toBe(200);
     expect(status.json()).toMatchObject({ status: 'stopped', mode: 'paper', symbol: 'BTC_USDT' });
+  });
+
+  it('separates liveness from readiness', async () => {
+    const live = await harness.app.inject({ method: 'GET', url: '/api/health/live' });
+    expect(live.statusCode).toBe(200);
+    expect(live.json()).toMatchObject({ ok: true });
+
+    const ready = await harness.app.inject({ method: 'GET', url: '/api/health/ready' });
+    expect(ready.statusCode).toBe(200);
+    expect(ready.json()).toMatchObject({ ok: true, checks: { db: true } });
+  });
+
+  it('returns 503 from readiness when the database is unreachable', async () => {
+    const ping = vi.spyOn(harness.repo, 'ping').mockReturnValue(false);
+    const ready = await harness.app.inject({ method: 'GET', url: '/api/health/ready' });
+    expect(ready.statusCode).toBe(503);
+    expect(ready.json()).toMatchObject({ ok: false, checks: { db: false } });
+    ping.mockRestore();
+  });
+
+  it('exposes Prometheus metrics without sensitive data', async () => {
+    const response = await harness.app.inject({ method: 'GET', url: '/metrics' });
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toContain('text/plain');
+    expect(response.body).toContain('goodz_bot_running 0');
+    expect(response.body).toContain('goodz_equity_usd');
+    expect(response.body).not.toContain('BTC_USDT');
+    expect(response.body).not.toContain('apiKey');
+  });
+
+  it('requires a bearer token for metrics when configured', async () => {
+    const secured = await createHarness({ metricsToken: '0123456789abcdef' });
+    try {
+      const unauthorized = await secured.app.inject({ method: 'GET', url: '/metrics' });
+      expect(unauthorized.statusCode).toBe(401);
+
+      const authorized = await secured.app.inject({
+        method: 'GET',
+        url: '/metrics',
+        headers: { authorization: 'Bearer 0123456789abcdef' },
+      });
+      expect(authorized.statusCode).toBe(200);
+    } finally {
+      await secured.close();
+    }
   });
 
   it('returns settings with safe defaults and no secrets', async () => {

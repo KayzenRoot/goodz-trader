@@ -1,0 +1,65 @@
+groups:
+  - name: goodz-trader
+    rules:
+      - alert: GoodzDown
+        expr: up{job="goodz-trader"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Goodz Trader is not scrapeable'
+          description: 'The API process or the /metrics endpoint has been down for >1m.'
+
+      - alert: GoodzDbDown
+        expr: goodz_db_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Goodz Trader database is unreachable'
+          description: 'Readiness is failing; trading state cannot be trusted.'
+
+      - alert: GoodzBotHalted
+        expr: goodz_bot_halted == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Goodz Trader is halted'
+          description: 'Check the halt reason, MEXC positions and the ledger before restarting.'
+
+      - alert: GoodzFeedStale
+        expr: goodz_feed_staleness_seconds > 15
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Goodz Trader market feed is stale'
+          description: 'Entries are blocked; verify the MEXC public feed and reconnect.'
+
+      - alert: GoodzApiDisconnected
+        expr: goodz_bot_running == 1 and goodz_api_connected == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Goodz Trader private API is disconnected'
+          description: 'A running live bot cannot reconcile fills/positions.'
+
+      - alert: GoodzOrderRateHigh
+        expr: goodz_orders_last_minute > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Goodz Trader order rate is high'
+          description: 'Check requote behavior and the exchange rate limit.'
+
+      - alert: GoodzHttp5xx
+        expr: sum(rate(goodz_http_requests_total{status="5xx"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Goodz Trader is returning 5xx responses'
+          description: 'Check logs, database health and the latest deploy.'

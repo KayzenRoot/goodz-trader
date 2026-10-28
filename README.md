@@ -47,6 +47,8 @@ Demo data is synthetic and clearly labeled. See [docs/screenshots](docs/screensh
   audit log) and streams live state over WebSocket.
 - Ships a complete dashboard: overview, terminal (chart/order book/tape), trades,
   analytics, settings and logs/audit.
+- Exposes protected Prometheus metrics, separate liveness/readiness checks and alert rules
+  for down/DB/halt/stale-feed/API/order-rate conditions.
 - Seeds deterministic **demo data** so the dashboard is useful offline before any key is
   configured. Demo rows are visibly marked.
 

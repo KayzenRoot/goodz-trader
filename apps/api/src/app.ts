@@ -26,6 +26,7 @@ import type { SessionService } from './services/auth';
 import { SESSION_COOKIE } from './services/auth';
 import type { EventBus, OutboundEvent } from './services/events';
 import type { MarketDataService } from './services/market-data';
+import type { MetricsRegistry } from './services/metrics';
 import type { NotificationService } from './services/notifier';
 import type { SettingsService } from './services/settings';
 import { registerAuthRoutes } from './routes/auth';
@@ -44,6 +45,7 @@ export interface AppDependencies {
   market: MarketDataService;
   events: EventBus;
   notifier: NotificationService;
+  metrics: MetricsRegistry;
   logger: AppLogger;
 }
 
@@ -103,6 +105,10 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
   });
 
   app.addHook('onResponse', async (request, reply) => {
+    const route = request.routeOptions?.url ?? 'unmatched';
+    if (route !== '/metrics') {
+      deps.metrics.observeHttp(request.method, route, reply.statusCode, reply.elapsedTime);
+    }
     if (request.url.startsWith('/api/health')) return;
     if (reply.elapsedTime > 1_000 || reply.statusCode >= 500) {
       deps.logger.warn('Requisição lenta ou com erro', {
@@ -121,6 +127,10 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     engine: deps.engine,
     market: deps.market,
     events: deps.events,
+    metrics: deps.metrics,
+    nodeEnv: deps.env.NODE_ENV,
+    metricsEnabled: deps.env.METRICS_ENABLED,
+    metricsToken: deps.env.METRICS_TOKEN,
   });
   registerSettingsRoutes(app, {
     repo: deps.repo,

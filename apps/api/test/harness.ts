@@ -6,6 +6,7 @@ import type { Env } from '../src/env';
 import { SessionService } from '../src/services/auth';
 import { EventBus } from '../src/services/events';
 import { MarketDataService } from '../src/services/market-data';
+import { MetricsRegistry } from '../src/services/metrics';
 import { NotificationService } from '../src/services/notifier';
 import { SettingsService } from '../src/services/settings';
 import { fakeClient, testLogger } from './helpers';
@@ -22,7 +23,9 @@ export interface Harness {
   close: () => Promise<void>;
 }
 
-export async function createHarness(options: { password?: string } = {}): Promise<Harness> {
+export async function createHarness(
+  options: { password?: string; metricsToken?: string } = {},
+): Promise<Harness> {
   const db = openDatabase(':memory:');
   const repo = new Repository(db);
   const events = new EventBus();
@@ -48,6 +51,8 @@ export async function createHarness(options: { password?: string } = {}): Promis
     RETENTION_LOGS_DAYS: 14,
     RETENTION_EQUITY_DAYS: 90,
     RETENTION_AUDIT_DAYS: 365,
+    METRICS_ENABLED: true,
+    METRICS_TOKEN: options.metricsToken,
     authRequired,
   };
 
@@ -88,6 +93,8 @@ export async function createHarness(options: { password?: string } = {}): Promis
     async () => new Response('{}', { status: 200 }),
   );
 
+  const metrics = new MetricsRegistry();
+
   const engine = new TradingEngine({
     repo,
     settings,
@@ -108,6 +115,7 @@ export async function createHarness(options: { password?: string } = {}): Promis
     market,
     events,
     notifier,
+    metrics,
     logger: testLogger,
   });
 
